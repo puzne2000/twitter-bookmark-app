@@ -48,7 +48,24 @@ def save_entry():
 
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
-    messagebox.showinfo("Saved", "Your entry has been saved.")
+    # Show a temporary window that says "Entry Saved" and fades out
+    saved_window = tk.Toplevel(root)
+    saved_window.overrideredirect(True)  # Remove window decorations
+    saved_window.attributes("-topmost", True)
+    saved_window.configure(bg="white")
+    saved_window.geometry(f"200x60+{root.winfo_x() + 100}+{root.winfo_y() + 100}")
+
+    label = tk.Label(saved_window, text="Entry Saved", font=("Helvetica", 16), bg="white")
+    label.pack(expand=True, fill="both", padx=10, pady=10)
+
+    def fade_out(alpha=1.0):
+        if alpha > 0:
+            saved_window.attributes("-alpha", alpha)
+            saved_window.after(50, fade_out, alpha - 0.03)
+        else:
+            saved_window.destroy()
+
+    fade_out()
 
 # Function to bring up the app window with autofill from clipboard
 def show_app():
