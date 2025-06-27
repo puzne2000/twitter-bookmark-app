@@ -83,7 +83,7 @@ def hotkey_listener(callback = on_activate):
     print("listener being activated")
     
     listener = keyboard.GlobalHotKeys({
-            '<cmd>+<shift>+h': callback
+            '<cmd>+<shift>+u': callback
         })
     listener.start()
     print("listener activated")
