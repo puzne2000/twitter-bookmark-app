@@ -48,6 +48,8 @@ def save_entry():
 
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
+    root.withdraw()
+
     # Show a temporary window that says "Entry Saved" and fades out
     saved_window = tk.Toplevel(root)
     saved_window.overrideredirect(True)  # Remove window decorations
