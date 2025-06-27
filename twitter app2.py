@@ -143,9 +143,17 @@ desc_entry = tk.Text(root, width=50, height=5)
 desc_entry.grid(row=1, column=1, padx=10, pady=5)
 
 def on_desc_enter(event=None):
-    show_done_window(root, save_entry)
+    # Only trigger if Shift is NOT held
+    if not (event.state & 0x0001):  # Shift is not pressed
+        show_done_window(root, save_entry)
+        return "break"  # Prevent newline
+
+def allow_newline(event=None):
+    # Allow default behavior (insert newline)
+    pass  # No action needed, just let it through
 
 desc_entry.bind("<Return>", on_desc_enter)
+desc_entry.bind("<Shift-Return>", allow_newline)
 
 # Bind the <FocusIn> event to the root window
 root.bind("<FocusIn>", on_window_activated)
