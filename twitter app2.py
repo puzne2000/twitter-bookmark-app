@@ -5,6 +5,30 @@ import pyperclip
 import re
 import threading
 from pynput import keyboard  # Use pynput for the hotkey
+import subprocess
+import os
+
+# Global variable to store the previous application
+previous_app = None
+
+# Function to get the currently active application
+def get_active_app():
+    try:
+        result = subprocess.run(['osascript', '-e', 'tell application "System Events" to get name of first application process whose frontmost is true'], 
+                              capture_output=True, text=True)
+        return result.stdout.strip()
+    except:
+        return None
+
+# Function to restore focus to the previous application
+def restore_previous_app():
+    global previous_app
+    if previous_app:
+        try:
+            subprocess.run(['osascript', '-e', f'tell application "{previous_app}" to activate'], 
+                         capture_output=True)
+        except:
+            pass
 
 # Function to validate if a string is a URL
 def is_url(string):
@@ -50,6 +74,8 @@ def save_entry():
     desc_entry.delete("1.0", tk.END)
     root.withdraw()
 
+
+    ### the whole chunk below should be a separate function
     # Show a temporary window that says "Entry Saved" and fades out
     saved_window = tk.Toplevel(root)
     saved_window.overrideredirect(True)  # Remove window decorations
@@ -68,10 +94,21 @@ def save_entry():
             saved_window.destroy()
 
     fade_out()
+    ### end of part that should be seperated
+                   # Hide the main window
+    #not sure why this should be here, the writing to file and the gui window release should be separated
+    root.withdraw()
+    # Restore focus to the previous application after the popup fades out
+    restore_previous_app()
 
 # Function to bring up the app window with autofill from clipboard
 def show_app():
+    global previous_app
     print("show me the appppp1")
+    
+    # Store the currently active application before showing our window
+    previous_app = get_active_app()
+    
     autofill_link()
     root.deiconify()
     root.lift()
@@ -103,8 +140,9 @@ def show_done_window(root, f_run):
 
     def on_done(event=None):
         done_win.grab_release()
-        done_win.destroy()
         f_run()
+        done_win.destroy()
+        root.withdraw()
 
     def on_cancel(event=None):
         done_win.grab_release()
@@ -133,6 +171,15 @@ def on_window_activated(event):
 # Initialize Tkinter GUI
 root = tk.Tk()
 root.title("Tweet Logger")
+
+# Bind window close event to restore focus
+def on_closing():
+    root.withdraw()
+    #feels like there's too much calls to restore previous app
+    #who calls on_closing?? when??
+    restore_previous_app()
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
 
 tk.Label(root, text="Tweet Link:").grid(row=0, column=0, padx=10, pady=5)
 link_entry = tk.Entry(root, width=50)
