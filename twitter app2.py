@@ -61,7 +61,7 @@ def save_entry():
     def fade_out(alpha=1.0):
         if alpha > 0:
             saved_window.attributes("-alpha", alpha)
-            saved_window.after(50, fade_out, alpha - 0.03)
+            saved_window.after(50, fade_out, alpha - 0.04)
         else:
             saved_window.destroy()
 
@@ -73,6 +73,7 @@ def show_app():
     autofill_link()
     root.deiconify()
     root.lift()
+    root.focus_force()
 
 # Thread to run the hotkey listener
 def on_activate():
@@ -83,7 +84,7 @@ def hotkey_listener(callback = on_activate):
     print("listener being activated")
     
     listener = keyboard.GlobalHotKeys({
-            '<cmd>+<shift>+u': callback
+            '<cmd>+<shift>+v': callback
         })
     listener.start()
     print("listener activated")
@@ -120,7 +121,7 @@ root.bind("<FocusIn>", on_window_activated)
 hotkey_thread = threading.Thread(target=hotkey_listener, daemon=True)
 hotkey_thread.start()
 
-root.mainloop() #gk added this!
+#root.mainloop() #gk added this!
 root.withdraw()
 
 # Start the Tkinter main loop
