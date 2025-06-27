@@ -92,6 +92,36 @@ def hotkey_listener(callback = on_activate):
     print("listener activated")
     return listener
 
+def show_done_window(root, f_run):
+    # Create a child window
+    done_win = tk.Toplevel(root)
+    done_win.title("Done?")
+    done_win.transient(root)
+    done_win.grab_set()
+    done_win.geometry("200x100+{}+{}".format(root.winfo_x() + 120, root.winfo_y() + 120))
+    done_win.resizable(False, False)
+
+    def on_done(event=None):
+        done_win.grab_release()
+        done_win.destroy()
+        f_run()
+
+    def on_cancel(event=None):
+        done_win.grab_release()
+        done_win.destroy()
+
+    # Button
+    btn = tk.Button(done_win, text="Done?", command=on_done)
+    btn.pack(expand=True, fill="both", padx=20, pady=20)
+    btn.focus_set()
+
+    # Bind Enter to confirm
+    done_win.bind("<Return>", on_done)
+    # Bind Escape to cancel
+    done_win.bind("<Escape>", on_cancel)
+    # Handle window close (X)
+    done_win.protocol("WM_DELETE_WINDOW", on_cancel)
+
 
 
 def on_window_activated(event):
@@ -112,8 +142,10 @@ tk.Label(root, text="Description:").grid(row=1, column=0, padx=10, pady=5)
 desc_entry = tk.Text(root, width=50, height=5)
 desc_entry.grid(row=1, column=1, padx=10, pady=5)
 
-save_button = tk.Button(root, text="Save Entry", command=save_entry)
-save_button.grid(row=2, column=1, pady=10)
+def on_desc_enter(event=None):
+    show_done_window(root, save_entry)
+
+desc_entry.bind("<Return>", on_desc_enter)
 
 # Bind the <FocusIn> event to the root window
 root.bind("<FocusIn>", on_window_activated)
