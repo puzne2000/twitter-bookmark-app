@@ -7,6 +7,7 @@ import threading
 from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
+from playsound import playsound
 
 # Global variable to store the previous application
 previous_app = None
@@ -44,6 +45,10 @@ def autofill_link():
     if is_url(clipboard_content):
         link_entry.delete(0, tk.END)
         link_entry.insert(0, clipboard_content)
+        return(True)
+    else:
+        print("autofill unsuccessful")
+        return False
 
 # Function to save the tweet link, description, and date
 def save_entry():
@@ -109,19 +114,26 @@ def show_app():
     # Store the currently active application before showing our window
     previous_app = get_active_app()
     
-    autofill_link()
-    root.deiconify()
-    root.lift()
-    root.focus_force()
+    if autofill_link(): #the clipboard contains a link
+        root.deiconify()
+        root.lift()
+        root.focus_force()
+    else:
+        print("bell sound")
+        playsound('/System/Library/Sounds/Frog.aiff', block=False) # Make an error sound
+        restore_previous_app()  # Return focus to the previous app
 
-# Thread to run the hotkey listener
+# This is called by the hotkey listener when the hotkey is pressed
 def on_activate():
-    print("hot KEY!")
+    """
+    Callback for the global hotkey.
+    Called by: pynput's GlobalHotKeys listener when the hotkey is pressed, as defined in hotkey_listener
+    Performs: show_app to show the app window
+    """
     show_app()
 
 def hotkey_listener(callback = on_activate):
     print("listener being activated")
-    
     listener = keyboard.GlobalHotKeys({
             '<cmd>+<shift>+v': callback
         })
@@ -130,7 +142,10 @@ def hotkey_listener(callback = on_activate):
     return listener
 
 def show_done_window(root, f_run):
-    # Create a child window
+    '''
+    pops a modal window child of root. if user confirms (by clicking or typing enter) then 
+    the window is closed and f_run is run. Otherwise the confirmation window closes
+    '''
     done_win = tk.Toplevel(root)
     done_win.title("Done?")
     done_win.transient(root)
