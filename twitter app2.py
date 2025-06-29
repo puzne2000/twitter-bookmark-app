@@ -184,21 +184,35 @@ def show_done_window(root, f_run):
 def on_window_activated(event):
     print("Window activated!")
     # You can perform any actions here when the window gains focus.
-    autofill_link()
+    autofill_link() #what if autofill is unsuccessful? this should be dealt with here!!
 
-
-# Initialize Tkinter GUI
-root = tk.Tk()
-root.title("Tweet Logger")
 
 # Bind window close event to restore focus
 def on_closing():
     root.withdraw()
     #feels like there's too much calls to restore previous app
     #who calls on_closing?? when??
+    #what happens when used presses done? is previous app restored then?
     restore_previous_app()
 
-root.protocol("WM_DELETE_WINDOW", on_closing)
+
+###
+#
+#  here is where the script starts to run
+#
+###
+
+
+
+# Initialize Tkinter GUI
+root = tk.Tk()
+root.title("Tweet Logger")
+
+
+
+#this says to call on_closing when user tries to delete
+root.protocol("WM_DELETE_WINDOW", on_closing) 
+
 
 tk.Label(root, text="Tweet Link:").grid(row=0, column=0, padx=10, pady=5)
 link_entry = tk.Entry(root, width=50)
