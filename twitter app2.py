@@ -196,32 +196,6 @@ def on_closing():
     restore_previous_app()
 
 
-###
-#
-#  here is where the script starts to run
-#
-###
-
-
-
-# Initialize Tkinter GUI
-root = tk.Tk()
-root.title("Tweet Logger")
-
-
-
-#this says to call on_closing when user tries to delete
-root.protocol("WM_DELETE_WINDOW", on_closing) 
-
-
-tk.Label(root, text="Tweet Link:").grid(row=0, column=0, padx=10, pady=5)
-link_entry = tk.Entry(root, width=50)
-link_entry.grid(row=0, column=1, padx=10, pady=5)
-
-tk.Label(root, text="Description:").grid(row=1, column=0, padx=10, pady=5)
-desc_entry = tk.Text(root, width=50, height=5)
-desc_entry.grid(row=1, column=1, padx=10, pady=5)
-
 def entry_is_done():
     save_entry()
     clear_entry_and_withdraw()
@@ -240,19 +214,52 @@ def allow_newline(event=None):
     #print("new line with shirt+enter")
     pass  # No action needed, just let it through
 
+
+
+########################################
+#
+#  Script execution starts here
+#
+########################################
+
+# Initialize Tkinter GUI (main application window)
+root = tk.Tk()
+root.title("Tweet Logger")  # Set the window title
+root.resizable(False, False)  # Prevent window resizing for a cleaner look
+
+# Set up window close protocol to call on_closing when user tries to close the window
+root.protocol("WM_DELETE_WINDOW", on_closing)
+
+# Create and place the "Tweet Link" label and entry field
+label_link = tk.Label(root, text="Tweet Link:", anchor="w", font=("Helvetica", 12))
+label_link.grid(row=0, column=0, padx=(15, 5), pady=(15, 5), sticky="w")
+link_entry = tk.Entry(root, width=55, font=("Helvetica", 11))
+link_entry.grid(row=0, column=1, padx=(5, 15), pady=(15, 5), sticky="ew")
+
+# Create and place the "Description" label and text box
+label_desc = tk.Label(root, text="Description:", anchor="nw", font=("Helvetica", 12))
+label_desc.grid(row=1, column=0, padx=(15, 5), pady=(5, 10), sticky="nw")
+desc_entry = tk.Text(root, width=55, height=5, font=("Helvetica", 11))
+desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
+
+# Configure grid weights for better resizing behavior (optional, since resizing is disabled)
+root.grid_columnconfigure(1, weight=1)
+
+# Bind Enter and Shift+Enter in the description box
+# Enter (without Shift) triggers the done window, Shift+Enter allows a newline
+# on_desc_enter and allow_newline are defined above
 desc_entry.bind("<Return>", on_desc_enter)
 desc_entry.bind("<Shift-Return>", allow_newline)
 
-# Bind the <FocusIn> event to the root window
+# Bind the <FocusIn> event to the root window to autofill link when window gains focus
 root.bind("<FocusIn>", on_window_activated)
 
-
-# Start the hotkey listener in a separate thread
+# Start the hotkey listener in a separate thread so it doesn't block the GUI
 hotkey_thread = threading.Thread(target=hotkey_listener, daemon=True)
 hotkey_thread.start()
 
-#root.mainloop() #gk added this!
+# Hide the main window at startup (it will be shown by the hotkey)
 root.withdraw()
 
-# Start the Tkinter main loop
+# Start the Tkinter main loop (this keeps the app running and responsive)
 root.mainloop()
