@@ -75,6 +75,8 @@ def save_entry():
         file.write("}")
         file.truncate()
 
+
+def clear_entry_and_withdraw():
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
     root.withdraw()
@@ -118,10 +120,12 @@ def show_app():
         root.deiconify()
         root.lift()
         root.focus_force()
+        return (True)
     else:
         print("bell sound")
         playsound('/System/Library/Sounds/Frog.aiff', block=False) # Make an error sound
         restore_previous_app()  # Return focus to the previous app
+        return (False)
 
 # This is called by the hotkey listener when the hotkey is pressed
 def on_activate():
@@ -204,14 +208,22 @@ tk.Label(root, text="Description:").grid(row=1, column=0, padx=10, pady=5)
 desc_entry = tk.Text(root, width=50, height=5)
 desc_entry.grid(row=1, column=1, padx=10, pady=5)
 
+def entry_is_done():
+    save_entry()
+    clear_entry_and_withdraw()
+
 def on_desc_enter(event=None):
     # Only trigger if Shift is NOT held
+    print("enter entered")
     if not (event.state & 0x0001):  # Shift is not pressed
-        show_done_window(root, save_entry)
+        show_done_window(root, entry_is_done)
         return "break"  # Prevent newline
+    else: #should not ever get here, because shift+enter is bound to allow_newline
+        print("enter pressed but also shit was pressed")
 
 def allow_newline(event=None):
     # Allow default behavior (insert newline)
+    #print("new line with shirt+enter")
     pass  # No action needed, just let it through
 
 desc_entry.bind("<Return>", on_desc_enter)
