@@ -114,8 +114,12 @@ def clear_entry_and_withdraw():
 
 # Function to bring up the app window with autofill from clipboard
 def show_app():
+    '''
+    called from on_hotkey when applications' hotkey is pressed. 
+    autofills link if exists, and restores previous app with a beep otherwise
+    '''
     global previous_app
-    print("show me the appppp1")
+    print("hotkey pressed")
     
     # Store the currently active application before showing our window
     previous_app = get_active_app()
@@ -124,6 +128,7 @@ def show_app():
         root.deiconify()
         root.lift()
         root.focus_force()
+        desc_entry.focus_set()  # Set focus to the description entry so user can type immediately
         return (True)
     else:
         print("bell sound")
@@ -141,7 +146,7 @@ def on_hotkey():
     show_app()
 
 
-def verify_done(root, f_run):
+def verify_done_window(root, f_run):
     '''
     pops a modal window child of root. if user confirms (by clicking or typing enter) then 
     the window is closed and f_run is run. Otherwise the confirmation window closes
@@ -205,7 +210,7 @@ def entry_is_done():
 def return_pressed(event=None):
     # Only triggered if Shift is NOT held
     #print("enter entered")
-    verify_done(root, entry_is_done)
+    verify_done_window(root, entry_is_done)
     return "break"  # Prevent newline, it's a tkinter thing
  
 def shift_return_pressed(event=None):
