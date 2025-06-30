@@ -50,11 +50,12 @@ def autofill_link(link_entry):
         link_entry.insert(0, clipboard_content)
         return(True)
     else:
+        ## just enter text to description instead!
         print("autofill unsuccessful")
         return False
 
 # Function to save the tweet link, description, and date
-def save_entry():
+def save_entry(path = "tweet_log.rtf"):
     ## thess should be read elsewhere and passed as parameters to save_entry
     tweet_link = link_entry.get()
     description = desc_entry.get("1.0", tk.END).strip()
@@ -64,20 +65,47 @@ def save_entry():
         messagebox.showwarning("Input Error", "Please fill in both fields.")
         return
 
+    # If the file does not exist, open a file selection window to open or create an rtf file
+    success = False
+
+    while not success:
+        if not os.path.isfile(path):
+            print(f"current file name {path} doesn't work will ask user")
+            from tkinter import filedialog
+            filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
+            selected_path = filedialog.asksaveasfilename(
+                title="Select or Create RTF File",
+                defaultextension=".rtf",
+                filetypes=filetypes
+            )
+            if not selected_path:
+                print("user did not select file, aborting")
+                return ""
+            path = selected_path
+        try:
+            with open(path, "r+"):
+                success = True
+                print(f"now {path} seems to work")
+        except Exception:
+            pass
     # Open the file in read+write mode
-    with open("tweet_log.rtf", "r+") as file:
-        content = file.read()
-        if not content.startswith("{\\rtf1"):
-            content = "{\\rtf1\n" + content
-        if content.endswith("}"):
-            content = content[:-1]
-        file.seek(0)
-        file.write(content)
-        file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
-        file.write(f"\\b Link:\\b0 {tweet_link}\\par\n")
-        file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
-        file.write("}")
-        file.truncate()
+    try:
+        with open(path, "r+") as file:
+            content = file.read()
+            if not content.startswith("{\\rtf1"):
+                content = "{\\rtf1\n" + content
+            if content.endswith("}"):
+                content = content[:-1]
+            file.seek(0)
+            file.write(content)
+            file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
+            file.write(f"\\b Link:\\b0 {tweet_link}\\par\n")
+            file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
+            file.write("}")
+            file.truncate()
+        return (path)
+    except Exception as e:
+        return ""
 
 
 def clear_entry_and_withdraw():
@@ -204,7 +232,9 @@ def on_closing():
 
 
 def entry_is_done():
-    save_entry()
+    global notes_file
+    print(f"entry does will save to path {notes_file}")
+    notes_file = save_entry(notes_file)
     clear_entry_and_withdraw()
 
 def return_pressed(event=None):
@@ -224,6 +254,10 @@ def shift_return_pressed(event=None):
 #  Script execution starts here
 #
 ########################################
+
+## for now, start with no notes file 
+# notes_file = "tweet_log.rtf" #for now, filename is set here
+notes_file =""
 
 # Initialize Tkinter GUI (main application window)
 root = tk.Tk()
