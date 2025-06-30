@@ -39,7 +39,10 @@ def is_url(string):
     return bool(url_pattern.match(string))
 
 # Function to check clipboard and auto-fill link field if valid
-def autofill_link():
+def autofill_link(link_entry):
+    '''
+    fills the link_entry label with a link from the clipboard, if one exists there
+    '''
     print("autofill")
     clipboard_content = pyperclip.paste()
     if is_url(clipboard_content):
@@ -52,6 +55,7 @@ def autofill_link():
 
 # Function to save the tweet link, description, and date
 def save_entry():
+    ## thess should be read elsewhere and passed as parameters to save_entry
     tweet_link = link_entry.get()
     description = desc_entry.get("1.0", tk.END).strip()
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -116,7 +120,7 @@ def show_app():
     # Store the currently active application before showing our window
     previous_app = get_active_app()
     
-    if autofill_link(): #the clipboard contains a link
+    if autofill_link(link_entry): #the clipboard contains a link
         root.deiconify()
         root.lift()
         root.focus_force()
@@ -164,6 +168,7 @@ def verify_done(root, f_run):
     btn.pack(expand=True, fill="both", padx=20, pady=20)
     btn.focus_set()
 
+    ## verify done shoudl just return whether verification was successfull, it shouldn't call other functions
     # Bind Enter to confirm
     done_win.bind("<Return>", on_done)
     # Bind Escape to cancel
