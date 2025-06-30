@@ -136,16 +136,8 @@ def on_hotkey():
     """
     show_app()
 
-def hotkey_listener(callback = on_hotkey):
-    print("listener being activated")
-    listener = keyboard.GlobalHotKeys({
-            '<cmd>+<shift>+v': callback
-        })
-    listener.start()
-    print("listener activated")
-    return listener
 
-def show_done_window(root, f_run):
+def verify_done(root, f_run):
     '''
     pops a modal window child of root. if user confirms (by clicking or typing enter) then 
     the window is closed and f_run is run. Otherwise the confirmation window closes
@@ -182,9 +174,14 @@ def show_done_window(root, f_run):
 
 
 def on_window_activated(event):
+    '''
+    this is bound to be called on a FocusIn event
+    '''
     print("Window activated!")
-    # You can perform any actions here when the window gains focus.
-    autofill_link() #what if autofill is unsuccessful? this should be dealt with here!!
+    # show root window
+    #root.deiconify()
+    #root.lift()
+    #root.focus_force()
 
 
 # Bind window close event to restore focus
@@ -200,21 +197,14 @@ def entry_is_done():
     save_entry()
     clear_entry_and_withdraw()
 
-def on_desc_enter(event=None):
-    # Only trigger if Shift is NOT held
-    print("enter entered")
-    show_done_window(root, entry_is_done)
+def return_pressed(event=None):
+    # Only triggered if Shift is NOT held
+    #print("enter entered")
+    verify_done(root, entry_is_done)
     return "break"  # Prevent newline, it's a tkinter thing
-    # no need for the if below because shift+return will not activate the return binding
-#    if not (event.state & 0x0001):  # Shift is not pressed
-#        show_done_window(root, entry_is_done)
-#        return "break"  # Prevent newline
-#    else: #should not ever get here, because shift+enter is bound to allow_newline
-#        print("enter pressed but also shit was pressed")
-
-def allow_newline(event=None):
+ 
+def shift_return_pressed(event=None):
     # Allow default behavior (insert newline)
-    #print("new line with shirt+enter")
     pass  # No action needed, just let it through
 
 
@@ -250,15 +240,24 @@ root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is
 
 # Bind Enter and Shift+Enter in the description box
 # Enter (without Shift) triggers the done window, Shift+Enter allows a newline
-# on_desc_enter and allow_newline are defined above
-desc_entry.bind("<Return>", on_desc_enter)
-desc_entry.bind("<Shift-Return>", allow_newline)
+# return_pressed and shift_return_pressed are defined above
+desc_entry.bind("<Return>", return_pressed)
+desc_entry.bind("<Shift-Return>", shift_return_pressed)
 
 # Bind the <FocusIn> event to the root window to autofill link when window gains focus
 root.bind("<FocusIn>", on_window_activated)
 
 # Start the hotkey listener in a separate thread so it doesn't block the GUI
 # It will call on_hotkey when pressed
+def hotkey_listener(callback = on_hotkey):
+    print("listener being activated")
+    listener = keyboard.GlobalHotKeys({
+            '<cmd>+<shift>+v': callback
+        })
+    listener.start()
+    print("listener activated")
+    return listener
+
 hotkey_thread = threading.Thread(target=hotkey_listener, args=(on_hotkey,), daemon=True)
 hotkey_thread.start()
 
