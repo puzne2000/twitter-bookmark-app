@@ -128,7 +128,7 @@ def show_app():
         return (False)
 
 # This is called by the hotkey listener when the hotkey is pressed
-def on_activate():
+def on_hotkey():
     """
     Callback for the global hotkey.
     Called by: pynput's GlobalHotKeys listener when the hotkey is pressed, as defined in hotkey_listener
@@ -136,7 +136,7 @@ def on_activate():
     """
     show_app()
 
-def hotkey_listener(callback = on_activate):
+def hotkey_listener(callback = on_hotkey):
     print("listener being activated")
     listener = keyboard.GlobalHotKeys({
             '<cmd>+<shift>+v': callback
@@ -203,11 +203,14 @@ def entry_is_done():
 def on_desc_enter(event=None):
     # Only trigger if Shift is NOT held
     print("enter entered")
-    if not (event.state & 0x0001):  # Shift is not pressed
-        show_done_window(root, entry_is_done)
-        return "break"  # Prevent newline
-    else: #should not ever get here, because shift+enter is bound to allow_newline
-        print("enter pressed but also shit was pressed")
+    show_done_window(root, entry_is_done)
+    return "break"  # Prevent newline, it's a tkinter thing
+    # no need for the if below because shift+return will not activate the return binding
+#    if not (event.state & 0x0001):  # Shift is not pressed
+#        show_done_window(root, entry_is_done)
+#        return "break"  # Prevent newline
+#    else: #should not ever get here, because shift+enter is bound to allow_newline
+#        print("enter pressed but also shit was pressed")
 
 def allow_newline(event=None):
     # Allow default behavior (insert newline)
@@ -243,7 +246,7 @@ desc_entry = tk.Text(root, width=55, height=5, font=("Helvetica", 11))
 desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
 
 # Configure grid weights for better resizing behavior (optional, since resizing is disabled)
-root.grid_columnconfigure(1, weight=1)
+root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is set to (false, flase) as above
 
 # Bind Enter and Shift+Enter in the description box
 # Enter (without Shift) triggers the done window, Shift+Enter allows a newline
@@ -255,7 +258,8 @@ desc_entry.bind("<Shift-Return>", allow_newline)
 root.bind("<FocusIn>", on_window_activated)
 
 # Start the hotkey listener in a separate thread so it doesn't block the GUI
-hotkey_thread = threading.Thread(target=hotkey_listener, daemon=True)
+# It will call on_hotkey when pressed
+hotkey_thread = threading.Thread(target=hotkey_listener, args=(on_hotkey,), daemon=True)
 hotkey_thread.start()
 
 # Hide the main window at startup (it will be shown by the hotkey)
