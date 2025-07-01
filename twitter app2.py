@@ -262,6 +262,9 @@ def shift_return_pressed(event=None):
 #notes_file = "tweet_log.rtf" #for now, filename is set here
 notes_file =""
 
+
+
+
 # Initialize Tkinter GUI (main application window)
 root = tk.Tk()
 root.title("Tweet Logger")  # Set the window title
