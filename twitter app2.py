@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import filedialog
 from datetime import datetime
 import pyperclip
 import re
@@ -71,9 +72,8 @@ def save_entry(path = "tweet_log.rtf"):
     while not success:
         if not os.path.isfile(path):
             print(f"current file name {path} doesn't work will ask user")
-            from tkinter import filedialog
             filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
-            selected_path = filedialog.asksaveasfilename(
+            selected_path = filedialog.askopenfilename(
                 title="Select or Create RTF File",
                 defaultextension=".rtf",
                 filetypes=filetypes
