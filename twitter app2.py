@@ -111,7 +111,6 @@ def save_entry(path = "tweet_log.rtf"):
 def clear_entry_and_withdraw():
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
-    root.withdraw()
 
 
     ### the whole chunk below should be a separate function
@@ -145,13 +144,12 @@ def clear_entry_and_withdraw():
     restore_previous_app()
 
 # Function to bring up the app window with autofill from clipboard
-def show_app():
+def attempt_app_to_front():
     '''
     called from on_hotkey when applications' hotkey is pressed. 
     autofills link if exists, and restores previous app with a beep otherwise
     '''
     global previous_app
-    print("hotkey pressed")
     
     # Store the currently active application before showing our window
     previous_app = get_active_app()
@@ -173,9 +171,10 @@ def on_hotkey():
     """
     Callback for the global hotkey.
     Called by: pynput's GlobalHotKeys listener when the hotkey is pressed, as defined in hotkey_listener
-    Performs: show_app to show the app window
+    Performs: attempt_app_to_front to show the app window
     """
-    show_app()
+    print("hotkey pressed")
+    attempt_app_to_front()
 
 
 def verify_done_window(root, f_run):
@@ -260,7 +259,7 @@ def shift_return_pressed(event=None):
 ########################################
 
 ## for now, start with no notes file 
-# notes_file = "tweet_log.rtf" #for now, filename is set here
+#notes_file = "tweet_log.rtf" #for now, filename is set here
 notes_file =""
 
 # Initialize Tkinter GUI (main application window)
