@@ -125,10 +125,14 @@ def clear_entry_and_withdraw():
     label = tk.Label(saved_window, text="Entry Saved", font=("Helvetica", 16), bg="white")
     label.pack(expand=True, fill="both", padx=10, pady=10)
 
+
+    root.withdraw()
+
     def fade_out(alpha=1.0):
         if alpha > 0:
+#            print(alpha)
             saved_window.attributes("-alpha", alpha)
-            saved_window.after(50, fade_out, alpha - 0.04)
+            saved_window.after(50, fade_out, alpha - 0.02)
         else:
             saved_window.destroy()
 
