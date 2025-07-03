@@ -90,4 +90,7 @@ tweet_log1.rtf
 .env.*
 
 # Setup files
-setup.py 
+setup.py
+
+# Added from the code block
+*.rtf 
