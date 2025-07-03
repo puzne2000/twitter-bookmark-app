@@ -34,6 +34,8 @@ def restore_previous_app():
 
 # Function to validate if a string is a URL
 def is_url(string):
+    if not isinstance(string, str):
+        return False
     url_pattern = re.compile(
         r'^(https?://)?(www\.)?([a-zA-Z0-9_-]+)+(\.[a-zA-Z]{2,})+(/[a-zA-Z0-9#?=_-]*)*'
     )
