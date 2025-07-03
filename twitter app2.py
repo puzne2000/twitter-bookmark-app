@@ -9,9 +9,15 @@ from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
 from playsound import playsound
+from dotenv import load_dotenv
+from openai import OpenAI
 
-import openai
+
+load_dotenv()
+api_key = os.getenv("OPENAI_API_KEY")
  
+client = OpenAI(api_key=api_key)
+
 
 # Global variable to store the previous application
 previous_app = None
@@ -155,10 +161,10 @@ def attempt_app_to_front():
     autofills link if exists, and restores previous app with a beep otherwise
     '''
     global previous_app
-     
+
     # Store the currently active application before showing our window
     previous_app = get_active_app()
-    
+
     if autofill_link(link_entry): #the clipboard contains a link
         root.deiconify()
         root.lift()
@@ -250,7 +256,7 @@ def return_pressed(event=None):
     #print("enter entered")
     verify_done_window(root, entry_is_done)
     return "break"  # Prevent newline, it's a tkinter thing
- 
+
 def shift_return_pressed(event=None):
     # Allow default behavior (insert newline)
     pass  # No action needed, just let it through
@@ -273,25 +279,25 @@ def auto_description(arg):
     prompt = f"Give a concise description of the website at this address: {url}"
 
     # Load OpenAI API key from .env file
-    from dotenv import load_dotenv
+  
     load_dotenv()
-    openai.api_key = os.getenv("OPENAI_API_KEY")
     try:
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": prompt}
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
             ],
             max_tokens=60,
-            temperature=0.7,
-        )
-        description = response['choices'][0]['message']['content'].strip()
+            temperature=0.7
+            )
+        description = response.choices[0].message.content.strip()
+        print(f"description: {description}")
         # You can now use this description as needed, e.g., insert into a text field
         # For example, if you have a description_entry widget:
         if 'desc_entry' in globals():
-            desc_entry.delete(0, 'end')
-            desc_entry.insert(0, description)
+            desc_entry.delete("1.0", 'end')
+            desc_entry.insert(tk.END, description)
         else:
             messagebox.showinfo("Description", description)
     except Exception as e:
