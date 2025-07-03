@@ -152,7 +152,7 @@ def attempt_app_to_front():
     autofills link if exists, and restores previous app with a beep otherwise
     '''
     global previous_app
-    
+     
     # Store the currently active application before showing our window
     previous_app = get_active_app()
     
@@ -265,10 +265,58 @@ def shift_return_pressed(event=None):
 notes_file =""
 
 
-
-
-# Initialize Tkinter GUI (main application window)
+# Create a menu bar# Initialize Tkinter GUI (main application window)
 root = tk.Tk()
+menu_bar = tk.Menu(root)
+
+# Create a "File" menu
+file_menu = tk.Menu(menu_bar, tearoff=0)
+
+def open_file():
+    global notes_file
+    filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
+    selected_path = filedialog.askopenfilename(
+        title="Open RTF File",
+        defaultextension=".rtf",
+        filetypes=filetypes
+    )
+    if selected_path:
+        notes_file = selected_path
+        messagebox.showinfo("File Opened", f"Opened file:\n{notes_file}")
+
+def new_file():
+    global notes_file
+    filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
+    selected_path = filedialog.asksaveasfilename(
+        title="Create New RTF File",
+        defaultextension=".rtf",
+        filetypes=filetypes
+    )
+    if selected_path:
+        # Create an empty RTF file with the RTF header
+        try:
+            with open(selected_path, "w") as f:
+                f.write("{\\rtf1\n}")
+            notes_file = selected_path
+            messagebox.showinfo("File Created", f"Created new file:\n{notes_file}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Could not create file:\n{e}")
+
+file_menu.add_command(label="Open...", command=open_file)
+file_menu.add_command(label="New...", command=new_file)
+file_menu.add_separator()
+file_menu.add_command(label="Exit", command=root.quit)
+
+menu_bar.add_cascade(label="File", menu=file_menu)
+
+# Set the menu bar on the root window
+root.config(menu=menu_bar)
+
+
+
+
+
+
 root.title("Tweet Logger")  # Set the window title
 root.resizable(False, False)  # Prevent window resizing for a cleaner look
 
