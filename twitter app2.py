@@ -10,6 +10,9 @@ import subprocess
 import os
 from playsound import playsound
 
+import openai
+ 
+
 # Global variable to store the previous application
 previous_app = None
 
@@ -254,6 +257,47 @@ def shift_return_pressed(event=None):
 
 
 
+def auto_description(arg):
+    """
+    Uses ChatGPT to generate a concise description of the website whose address is in the link_entry widget.
+    Assumes link_entry is a Tkinter Entry widget containing the URL.
+    """
+    print("auto-describe called")
+    print(arg)
+    url = link_entry.get().strip()
+    if not url:
+        messagebox.showwarning("No URL", "Please enter a website address.")
+        return
+
+    # Compose the prompt for ChatGPT
+    prompt = f"Give a concise description of the website at this address: {url}"
+
+    # Load OpenAI API key from .env file
+    from dotenv import load_dotenv
+    load_dotenv()
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=60,
+            temperature=0.7,
+        )
+        description = response['choices'][0]['message']['content'].strip()
+        # You can now use this description as needed, e.g., insert into a text field
+        # For example, if you have a description_entry widget:
+        if 'desc_entry' in globals():
+            desc_entry.delete(0, 'end')
+            desc_entry.insert(0, description)
+        else:
+            messagebox.showinfo("Description", description)
+    except Exception as e:
+        messagebox.showerror("Error", f"Failed to get description:\n{e}")
+
+
 ########################################
 #
 #  Script execution starts here
@@ -338,11 +382,15 @@ desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
 # Configure grid weights for better resizing behavior (optional, since resizing is disabled)
 root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is set to (false, flase) as above
 
-# Bind Enter and Shift+Enter in the description box
+#
+# # Bind keys in the description box
+#
 # Enter (without Shift) triggers the done window, Shift+Enter allows a newline
 # return_pressed and shift_return_pressed are defined above
 desc_entry.bind("<Return>", return_pressed)
 desc_entry.bind("<Shift-Return>", shift_return_pressed)
+desc_entry.bind("<Tab>", auto_description)
+
 
 # Bind the <FocusIn> event to the root window to autofill link when window gains focus
 root.bind("<FocusIn>", on_window_activated)
