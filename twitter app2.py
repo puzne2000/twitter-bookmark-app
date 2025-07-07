@@ -66,20 +66,10 @@ def autofill_link(link_entry):
         print("autofill unsuccessful")
         return False
 
-# Function to save the tweet link, description, and date
-def save_entry(path = "tweet_log.rtf"):
-    ## thess should be read elsewhere and passed as parameters to save_entry
-    tweet_link = link_entry.get()
-    description = desc_entry.get("1.0", tk.END).strip()
-    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    if not tweet_link or not description:
-        messagebox.showwarning("Input Error", "Please fill in both fields.")
-        return
-
-    # If the file does not exist, open a file selection window to open or create an rtf file
+def ensure_path(path):
     success = False
-
+        ## TODO: checking the path and finding another if it doesn't exist should be done in a separate function
     while not success:
         if not os.path.isfile(path):
             print(f"current file name {path} doesn't work will ask user")
@@ -99,9 +89,29 @@ def save_entry(path = "tweet_log.rtf"):
                 print(f"now {path} seems to work")
         except Exception:
             pass
+    
+    return path
+
+
+
+# Function to save the tweet link, description, and date
+def save_entry(path = "tweet_log.rtf"):
+    ## thess should be read elsewhere and passed as parameters to save_entry
+    tweet_link = link_entry.get()
+    description = desc_entry.get("1.0", tk.END).strip()
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    if not tweet_link or not description:
+        messagebox.showwarning("Input Error", "Please fill in both fields.")
+        return
+
+    # If the file does not exist, open a file selection window to open or create an rtf file
+    path = ensure_path(path)
+
     # Open the file in read+write mode
     try:
         with open(path, "r+") as file:
+            ## TODO: should have a separate draft and nondraft description. allow a parameter for autogeneration, in which case use get_description_from_server
             content = file.read()
             if not content.startswith("{\\rtf1"):
                 content = "{\\rtf1\n" + content
