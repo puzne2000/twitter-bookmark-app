@@ -36,6 +36,7 @@ def get_description_from_server(address, draft_description, when_done):
         when_done (function): A callback function to be called with (address, draft_description, result_description).
     """
     def worker():
+        # print("i'm the worker, will ask the server on my own time")
         try:
             # Adjust the server URL as needed
             url = "http://127.0.0.1:5000/"
@@ -46,6 +47,7 @@ def get_description_from_server(address, draft_description, when_done):
             response = requests.post(url, data=data)
             result_description = None
             if response.ok:
+                # print("yay i got a response from the server")
                 # Try to extract the result from the response HTML
                 import re
                 match = re.search(r'<textarea[^>]*id="resultTextarea"[^>]*>(.*?)</textarea>', response.text, re.DOTALL)
@@ -57,7 +59,8 @@ def get_description_from_server(address, draft_description, when_done):
                 result_description = f"Error: {response.status_code}"
         except Exception as e:
             result_description = f"Exception: {e}"
-        when_done(address, draft_description, result_description)
+        # print("worker is done, will call when_done")
+        when_done(result_description)
 
     thread = threading.Thread(target=worker)
     thread.start()
@@ -136,18 +139,15 @@ def ensure_path(path):
 
 
 # Function to save the tweet link, description, and date
-def save_entry(path = "tweet_log.rtf"):
-    ## thess should be read elsewhere and passed as parameters to save_entry
-    tweet_link = link_entry.get()
-    description = desc_entry.get("1.0", tk.END).strip()
-    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+def save_entry(url, description, date, draft = ""):
+    global notes_file
 
-    if not tweet_link or not description:
+    if not url or not description:
         messagebox.showwarning("Input Error", "Please fill in both fields.")
         return
 
     # If the file does not exist, open a file selection window to open or create an rtf file
-    path = ensure_path(path)
+    path = notes_file
 
     # Open the file in read+write mode
     try:
@@ -161,7 +161,9 @@ def save_entry(path = "tweet_log.rtf"):
             file.seek(0)
             file.write(content)
             file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
-            file.write(f"\\b Link:\\b0 {tweet_link}\\par\n")
+            file.write(f"\\b Link:\\b0 {url}\\par\n")
+            if draft is not None and draft != "":
+                file.write(f"\\b Draft: \\b0 {draft}\\par\n\\par\n")
             file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
             file.write("}")
             file.truncate()
@@ -295,11 +297,16 @@ def on_closing():
     #what happens when used presses done? is previous app restored then?
     restore_previous_app()
 
+def entry_from_interface():
+    tweet_link = link_entry.get()
+    description = desc_entry.get("1.0", tk.END).strip()
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return tweet_link, description, date
 
 def entry_is_done():
-    global notes_file
-    print(f"entry does will save to path {notes_file}")
-    notes_file = save_entry(notes_file)
+    ## thess should be read elsewhere and passed as parameters to save_entry
+    tweet_link, description, date = entry_from_interface() 
+    notes_file = save_entry(tweet_link, description, date)
     clear_entry_and_withdraw()
 
 def return_pressed(event=None):
@@ -312,31 +319,15 @@ def shift_return_pressed(event=None):
     # Allow default behavior (insert newline)
     pass  # No action needed, just let it through
 
-
-
-def auto_description(arg):
-    """
-    Uses ChatGPT to generate a concise description of the website whose address is in the link_entry widget.
-    Assumes link_entry is a Tkinter Entry widget containing the URL.
-    """
-    ## TODO: first refactor save_entry and separate the entry saving part, and then make this function work...
-    ## TODO: the prompt to chose a file should appear when app is first run, outside of save_entry
-    print(f"auto-describe called with argument {arg}")
-
-    #get site and current description
-    url = link_entry.get().strip()
-    if not url:
-        description = "No URL, Please enter a website address."
-        messagebox.showwarning("No URL", "Please enter a website address.")
-        return
-    draft = desc_entry.get("1.0", tk.END).strip()
-
-    ## TODO: this here is a big old mess, should first get save_entry to work as it should and then call it here, 
-    ## and define a function that calls it when the server is done and call that if url does exist
-
-    messagebox.showwarning("Not implemented", "Auto description is not yet implemented")
-    return
-
+def auto_description_requested(arg):
+    print(f"autro description with arg {arg}")
+    tweet_link, description, date = entry_from_interface() 
+    def when_done(result):
+        print("server called me to save the entry")
+        save_entry(tweet_link, result, date, description)
+    get_description_from_server(tweet_link, description, when_done)
+    clear_entry_and_withdraw()
+    
 
 
 ########################################
@@ -347,7 +338,7 @@ def auto_description(arg):
 
 ## for now, start with no notes file 
 #notes_file = "tweet_log.rtf" #for now, filename is set here
-notes_file =""
+notes_file ="poop.rtf"
 
 
 # Create a menu bar# Initialize Tkinter GUI (main application window)
@@ -430,7 +421,7 @@ root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is
 # return_pressed and shift_return_pressed are defined above
 desc_entry.bind("<Return>", return_pressed)
 desc_entry.bind("<Shift-Return>", shift_return_pressed)
-desc_entry.bind("<Tab>", auto_description)
+desc_entry.bind("<Tab>", auto_description_requested)
 
 
 # Bind the <FocusIn> event to the root window to autofill link when window gains focus
