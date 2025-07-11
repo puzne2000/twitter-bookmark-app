@@ -450,8 +450,13 @@ def hotkey_listener(callback = on_hotkey):
 hotkey_thread = threading.Thread(target=hotkey_listener, args=(on_hotkey,), daemon=True)
 hotkey_thread.start()
 
+
+
 # Hide the main window at startup (it will be shown by the hotkey)
 root.withdraw()
+
+notes_file = ensure_path(notes_file)
+
 
 # Start the Tkinter main loop (this keeps the app running and responsive)
 root.mainloop()
