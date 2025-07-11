@@ -46,6 +46,52 @@ pip install -r requirements.txt
 4. **Error Sound**
    - If the clipboard does not contain a valid URL, a system sound will play and the app will not appear.
 
+## CSV Viewer Tool
+
+The `view_csv.py` script provides an interactive command-line interface for browsing and searching CSV files, particularly useful for viewing bookmark collections with descriptions.
+
+### What it's used for
+- Browse through CSV entries one by one
+- Search for specific keywords across all fields
+- Copy URLs to clipboard for easy access
+- Launch URLs directly in Safari
+- Navigate through large datasets efficiently
+
+### Command Line Usage
+```bash
+# Use default file (poop.csv)
+python view_csv.py
+
+# Specify a CSV file
+python view_csv.py safari_bookmarks_descripbed.csv
+```
+
+### Input File Format
+The script expects a CSV file with headers. It automatically detects the 'url' column or defaults to the third column (index 2) for URL operations.
+
+Example CSV format:
+```csv
+url,folder,title,description
+https://example.com,buy,Example Site,This is a description
+https://another.com,news,Another Site,Another description
+```
+
+### Keyboard Commands
+When viewing entries, use these commands:
+
+- **N** or **Enter**: Next entry
+- **P**: Previous entry  
+- **S**: New search (returns to search prompt)
+- **C**: Copy current URL to clipboard
+- **L**: Launch current URL in Safari
+- **Q**: Quit the viewer
+
+### Search Functionality
+- Enter keywords to filter entries
+- Search works across all columns (url, folder, title, description)
+- Case-insensitive matching
+- Press Enter without keywords to view all entries
+
 ## Customization
 - **Hotkey**: Change the hotkey by editing the `hotkey_listener` function in the script.
 - **Sound**: Change the error sound by editing the path in the `playsound` call (e.g., `/System/Library/Sounds/Frog.aiff`).

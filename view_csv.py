@@ -8,10 +8,15 @@ except ImportError:
     HAS_CLIP = False
 import subprocess
 
-CSV_FILE = 'poop.csv'
+def get_csv_file():
+    if len(sys.argv) > 1:
+        return sys.argv[1]
+    else:
+        return 'poop.csv'
 
 def load_csv():
-    with open(CSV_FILE, newline='', encoding='utf-8') as f:
+    csv_file = get_csv_file()
+    with open(csv_file, newline='', encoding='utf-8') as f:
         reader = csv.reader(f)
         rows = list(reader)
     headers = rows[0]
@@ -53,7 +58,8 @@ def launch_in_safari(url):
 
 def main():
     headers, data = load_csv()
-    print(f"Loaded {len(data)} entries from {CSV_FILE}.")
+    csv_file = get_csv_file()
+    print(f"Loaded {len(data)} entries from {csv_file}.")
     while True:
         keyword = input("Enter search keyword (or press Enter to view all, or Q to quit): ").strip()
         if keyword.lower() == 'q':
