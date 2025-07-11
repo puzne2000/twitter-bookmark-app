@@ -37,6 +37,7 @@ for i, entry in enumerate(entries):
         url = url[:-4].rstrip()
     # Extract draft (optional)
     draft_match = re_draft.search(entry)
+    
     draft = draft_match.group(1).strip() if draft_match else ''
     # Extract description
     description_match = re_description.search(entry)
