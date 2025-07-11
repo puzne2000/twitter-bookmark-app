@@ -8,19 +8,60 @@ import threading
 from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
+import sys
 from playsound import playsound
-from dotenv import load_dotenv
-from openai import OpenAI
-
-
-load_dotenv()
-api_key = os.getenv("OPENAI_API_KEY")
- 
-client = OpenAI(api_key=api_key)
 
 
 # Global variable to store the previous application
 previous_app = None
+
+############################
+#
+# The function get_description_from_server will request a website description from the server asynchronously.
+# It parameters will include a web address, a draft description (which may be empty), and a when_done function.  
+# After the request to the server is completed, the when_done function will be called with parameters 
+# containing the address of the website, the draft description, and the result description  
+#
+############################
+import threading
+import requests
+
+def get_description_from_server(address, draft_description, when_done):
+    """
+    Asynchronously requests a website description from the server.
+
+    Args:
+        address (str): The website address.
+        draft_description (str): An optional draft description.
+        when_done (function): A callback function to be called with (address, draft_description, result_description).
+    """
+    def worker():
+        try:
+            # Adjust the server URL as needed
+            url = "http://127.0.0.1:5000/"
+            data = {
+                "address": address,
+                "draft": draft_description or ""
+            }
+            response = requests.post(url, data=data)
+            result_description = None
+            if response.ok:
+                # Try to extract the result from the response HTML
+                import re
+                match = re.search(r'<textarea[^>]*id="resultTextarea"[^>]*>(.*?)</textarea>', response.text, re.DOTALL)
+                if match:
+                    result_description = match.group(1).strip()
+                else:
+                    result_description = response.text
+            else:
+                result_description = f"Error: {response.status_code}"
+        except Exception as e:
+            result_description = f"Exception: {e}"
+        when_done(address, draft_description, result_description)
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+
 
 # Function to get the currently active application
 def get_active_app():
@@ -278,40 +319,24 @@ def auto_description(arg):
     Uses ChatGPT to generate a concise description of the website whose address is in the link_entry widget.
     Assumes link_entry is a Tkinter Entry widget containing the URL.
     """
-    print("auto-describe called")
-    print(arg)
+    ## TODO: first refactor save_entry and separate the entry saving part, and then make this function work...
+    ## TODO: the prompt to chose a file should appear when app is first run, outside of save_entry
+    print(f"auto-describe called with argument {arg}")
+
+    #get site and current description
     url = link_entry.get().strip()
     if not url:
+        description = "No URL, Please enter a website address."
         messagebox.showwarning("No URL", "Please enter a website address.")
         return
+    draft = desc_entry.get("1.0", tk.END).strip()
 
-    # Compose the prompt for ChatGPT
-    prompt = f"Give a concise description of the website at this address: {url}"
+    ## TODO: this here is a big old mess, should first get save_entry to work as it should and then call it here, 
+    ## and define a function that calls it when the server is done and call that if url does exist
 
-    # Load OpenAI API key from .env file
-  
-    load_dotenv()
-    try:
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-            ],
-            max_tokens=60,
-            temperature=0.7
-            )
-        description = response.choices[0].message.content.strip()
-        print(f"description: {description}")
-        # You can now use this description as needed, e.g., insert into a text field
-        # For example, if you have a description_entry widget:
-        if 'desc_entry' in globals():
-            desc_entry.delete("1.0", 'end')
-            desc_entry.insert(tk.END, description)
-        else:
-            messagebox.showinfo("Description", description)
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to get description:\n{e}")
+    messagebox.showwarning("Not implemented", "Auto description is not yet implemented")
+    return
+
 
 
 ########################################
