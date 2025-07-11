@@ -8,21 +8,12 @@ import threading
 from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
-import sys
 from playsound import playsound
 
 
 # Global variable to store the previous application
 previous_app = None
 
-############################
-#
-# The function get_description_from_server will request a website description from the server asynchronously.
-# It parameters will include a web address, a draft description (which may be empty), and a when_done function.  
-# After the request to the server is completed, the when_done function will be called with parameters 
-# containing the address of the website, the draft description, and the result description  
-#
-############################
 import threading
 import requests
 
