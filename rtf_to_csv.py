@@ -33,6 +33,8 @@ for i, entry in enumerate(entries):
     # Extract link
     link_match = re_link.search(entry)
     url = link_match.group(1).strip() if link_match else ''
+    if url.endswith('\\par'): # TODO would have been better to correct this by changing the regexp search
+        url = url[:-4].rstrip()
     # Extract draft (optional)
     draft_match = re_draft.search(entry)
     draft = draft_match.group(1).strip() if draft_match else ''
