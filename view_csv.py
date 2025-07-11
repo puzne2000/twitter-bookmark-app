@@ -1,6 +1,13 @@
 import csv
 import sys
 
+try:
+    import pyperclip
+    HAS_CLIP = True
+except ImportError:
+    HAS_CLIP = False
+import subprocess
+
 CSV_FILE = 'poop.csv'
 
 def load_csv():
@@ -24,6 +31,19 @@ def print_entry(headers, row, idx, total):
         print(f"{h}:\n{v}\n")
     print("=" * 40)
 
+def copy_to_clipboard(text):
+    if HAS_CLIP:
+        pyperclip.copy(text)
+        print("URL copied to clipboard.")
+    else:
+        # Fallback for macOS
+        try:
+            p = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+            p.communicate(input=text.encode('utf-8'))
+            print("URL copied to clipboard (pbcopy).")
+        except Exception as e:
+            print("Clipboard copy not supported (install pyperclip for cross-platform support).", e)
+
 def main():
     headers, data = load_csv()
     print(f"Loaded {len(data)} entries from {CSV_FILE}.")
@@ -32,9 +52,10 @@ def main():
     print(f"Found {len(filtered)} matching entries.")
     idx = 0
     total = len(filtered)
+    url_idx = headers.index('url') if 'url' in headers else 2
     while total > 0:
         print_entry(headers, filtered[idx], idx, total)
-        cmd = input("[N]ext, [P]revious, [S]earch, [Q]uit: ").strip().lower()
+        cmd = input("[N]ext, [P]revious, [S]earch, [C]lipboard, [Q]uit: ").strip().lower()
         if cmd == '' or cmd == 'n':
             if idx < total - 1:
                 idx += 1
@@ -54,10 +75,13 @@ def main():
             if total == 0:
                 print("No entries to display.")
                 break
+        elif cmd == 'c':
+            url = filtered[idx][url_idx]
+            copy_to_clipboard(url)
         elif cmd == 'q':
             break
         else:
-            print("Unknown command. Use N, P, S, or Q.")
+            print("Unknown command. Use N, P, S, C, or Q.")
     if total == 0:
         print("No entries to display.")
 
