@@ -3,11 +3,25 @@ import requests
 import re
 import time
 import os
+import unicodedata
 
 INPUT_CSV = 'safari_bookmarks.csv'
 OUTPUT_CSV = 'safari_bookmarks_descripbed.csv'
 SERVER_URL = 'http://127.0.0.1:5000/'
 
+def fix_hebrew_display(text):
+    """Fix Hebrew text display by adding proper Unicode bidirectional control characters"""
+    if not text:
+        return text
+    
+    # Check if text contains Hebrew characters
+    hebrew_chars = any('\u0590' <= char <= '\u05FF' for char in text)
+    if not hebrew_chars:
+        return text
+    
+    # Add Right-to-Left Mark (RLM) at the beginning and Left-to-Right Mark (LRM) at the end
+    # This helps ensure proper bidirectional text rendering
+    return '\u200F' + text + '\u200E'
 
 def get_description(address, draft_description=None):
     data = {
@@ -33,6 +47,10 @@ def save_current_stack(rows_to_write, fieldnames):
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows_to_write:
+            # Fix Hebrew display for all text fields
+            for key, value in row.items():
+                if isinstance(value, str):
+                    row[key] = fix_hebrew_display(value)
             print(f"writing entry:\n  {row}")
             writer.writerow(row)
     return
@@ -75,6 +93,10 @@ def main():
         writer = csv.DictWriter(outfile, fieldnames=fieldnames)
         writer.writeheader()
         for row in rows_to_write:
+            # Fix Hebrew display for all text fields
+            for key, value in row.items():
+                if isinstance(value, str):
+                    row[key] = fix_hebrew_display(value)
             writer.writerow(row)
 
 if __name__ == '__main__':
