@@ -1,5 +1,6 @@
 import csv
 import sys
+import os
 
 try:
     import pyperclip
@@ -7,6 +8,26 @@ try:
 except ImportError:
     HAS_CLIP = False
 import subprocess
+
+# Cross-platform immediate key input
+def get_key():
+    """Get a single key press without requiring Enter"""
+    if os.name == 'nt':  # Windows
+        import msvcrt
+        return msvcrt.getch().decode('utf-8').lower()
+    else:  # Unix-like systems (macOS, Linux)
+        import tty
+        import termios
+        import sys
+        
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(sys.stdin.fileno())
+            ch = sys.stdin.read(1)
+            return ch.lower()
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def get_csv_file():
     if len(sys.argv) > 1:
@@ -74,8 +95,10 @@ def main():
         url_idx = headers.index('url') if 'url' in headers else 2
         while total > 0:
             print_entry(headers, filtered[idx], idx, total)
-            cmd = input("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [Q]uit: ").strip().lower()
-            if cmd == '' or cmd == 'n':
+            print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [Q]uit: ", end='', flush=True)
+            cmd = get_key()
+            print(cmd.upper())  # Show the key that was pressed
+            if cmd == 'n' or cmd == '\r' or cmd == '\n':  # Enter or n
                 if idx < total - 1:
                     idx += 1
                 else:
