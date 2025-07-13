@@ -6,7 +6,7 @@ import os
 import unicodedata
 
 INPUT_CSV = 'safari_bookmarks.csv'
-OUTPUT_CSV = 'safari_bookmarks_descripbed.csv'
+OUTPUT_CSV = 'safari_bookmarks_described.csv'
 SERVER_URL = 'http://127.0.0.1:5000/'
 
 def fix_hebrew_display(text):
