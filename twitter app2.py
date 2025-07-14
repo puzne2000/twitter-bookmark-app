@@ -315,6 +315,10 @@ def auto_description_requested(arg):
     tweet_link, description, date = entry_from_interface() 
     def when_done(result):
         print("server called me to save the entry")
+        # TODO: create a message window with a title that says "desciprtion obtained". Under that there will be an editable text box, and under that there will be a "done| button. 
+        # The text box will initially cotain the text in the result variable. 
+        # The user can edit the text box or not, but in any case whenever they press return, the variable result is updated to the contents of the text box and the window is erased. 
+        # If the user presses escape or closes the window, the result variable gets the value None
         save_entry(tweet_link, result, date, description)
     get_description_from_server(tweet_link, description, when_done)
     clear_entry_and_withdraw()
