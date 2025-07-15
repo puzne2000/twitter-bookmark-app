@@ -312,14 +312,86 @@ def shift_return_pressed(event=None):
 
 def auto_description_requested(arg):
     print(f"autro description with arg {arg}")
+    
     tweet_link, description, date = entry_from_interface() 
     def when_done(result):
         print("server called me to save the entry")
-        # TODO: create a message window with a title that says "desciprtion obtained". Under that there will be an editable text box, and under that there will be a "done| button. 
-        # The text box will initially cotain the text in the result variable. 
-        # The user can edit the text box or not, but in any case whenever they press return, the variable result is updated to the contents of the text box and the window is erased. 
-        # If the user presses escape or closes the window, the result variable gets the value None
-        save_entry(tweet_link, result, date, description)
+        # Create a modal dialog for editing the description
+        # Store the currently active application before showing our window
+        previous_app = get_active_app()
+
+        def show_editable_description_dialog(initial_text):
+            root.deiconify()  # Show the main window
+            root.lift()
+            root.focus_force()
+
+
+            dialog = tk.Toplevel(root)
+            dialog.title("Description obtained")
+            dialog.transient(root)
+            dialog.grab_set()
+            dialog.resizable(False, False)
+
+            # Result variable to store the edited text
+            result_var = {'value': initial_text}
+
+            # Text box
+            text_box = tk.Text(dialog, width=60, height=8, wrap="word")
+            text_box.insert("1.0", initial_text)
+            text_box.pack(padx=10, pady=(10, 5))
+
+            # Focus the text box
+            dialog.lift()  # Brings the window to the top of the stacking order
+            dialog.focus_force()
+            dialog.attributes("-topmost", True)
+            text_box.focus_set()
+
+            # Handler for Done button or Return
+            def on_done(event=None):
+                result_var['value'] = text_box.get("1.0", tk.END).strip()
+                dialog.grab_release()
+                dialog.destroy()
+
+                root.withdraw()
+                restore_previous_app()
+
+            # Handler for Escape or window close
+            def on_cancel(event=None):
+                result_var['value'] = None
+                dialog.grab_release()
+                dialog.destroy()
+
+                root.withdraw()
+                restore_previous_app()
+
+            # Done button
+            done_btn = tk.Button(dialog, text="Done", command=on_done)
+            done_btn.pack(pady=(0, 10))
+
+            # Bind Return (but not Shift+Return) to on_done
+            def return_handler(event):
+                if not (event.state & 0x0001):  # Shift not held
+                    on_done()
+                    return "break"  # Prevent newline
+            text_box.bind("<Return>", return_handler)
+            # Allow Shift+Return to insert newline (default behavior)
+
+            # Bind Escape to cancel
+            dialog.bind("<Escape>", on_cancel)
+            dialog.protocol("WM_DELETE_WINDOW", on_cancel)
+
+            # Wait for the dialog to close
+            root.wait_window(dialog)
+            return result_var['value']
+
+        # Show the dialog and get the possibly edited description
+        edited_result = show_editable_description_dialog(result)
+        print(f"result: {result} \nEditted result: {edited_result}")
+        if edited_result is not None:
+            save_entry(tweet_link, edited_result, date, description)
+        else:
+            save_entry(tweet_link, description, date)
+
     get_description_from_server(tweet_link, description, when_done)
     clear_entry_and_withdraw()
     
