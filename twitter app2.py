@@ -142,8 +142,34 @@ def ensure_path(path):
 
 
 
-# Function to save the tweet link, description, and date
 def save_entry(url, description, date, draft = ""):
+    """
+    Save a tweet entry to the notes file in RTF format.
+
+    This function writes a new entry containing the tweet link (url), description, and date
+    to the global notes_file. If a draft description is provided, it is included as a separate
+    field. The function ensures the file starts with the RTF header and appends the new entry
+    in a format compatible with RTF readers.
+
+    Args:
+        url (str): The tweet link to save.
+        description (str): The main description of the tweet.
+        date (str): The date and time of the entry.
+        draft (str, optional): An optional draft description to include. Defaults to "".
+
+    Returns:
+        str: The path to the notes file if successful, or an empty string if an error occurs.
+
+    Side Effects:
+        - Shows a warning message box if url or description is missing.
+        - Modifies the global notes_file.
+        - Writes to the notes file in-place, updating its content.
+
+    Notes:
+        - If the notes file does not start with the RTF header, it is added.
+        - If the notes file ends with a closing brace, it is temporarily removed to append the new entry.
+        - The function expects the notes file to be in RTF format.
+    """
     global notes_file
 
     if not url or not description:
