@@ -103,8 +103,21 @@ def autofill_link(link_entry):
 
 
 def ensure_path(path):
+    """
+    Ensures that the provided file path points to an existing, accessible file.
+    If the file does not exist or cannot be opened for reading and writing,
+    prompts the user with a file dialog to select or create a valid RTF file.
+    The function will keep prompting the user until a valid file is selected or
+    the user cancels the dialog, in which case an empty string is returned.
+
+    Args:
+        path (str): The initial file path to check.
+
+    Returns:
+        str: The path to a valid, accessible file, or an empty string if the user cancels.
+    """
     success = False
-        ## TODO: checking the path and finding another if it doesn't exist should be done in a separate function
+    # TODO: checking the path and finding another if it doesn't exist should be done in a separate function
     while not success:
         if not os.path.isfile(path):
             print(f"current file name {path} doesn't work will ask user")
@@ -124,7 +137,7 @@ def ensure_path(path):
                 print(f"now {path} seems to work")
         except Exception:
             pass
-    
+
     return path
 
 
