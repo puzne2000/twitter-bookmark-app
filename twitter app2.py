@@ -121,12 +121,7 @@ def ensure_path(path):
     while not success:
         if not os.path.isfile(path):
             print(f"current file name {path} doesn't work will ask user")
-            filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
-            selected_path = filedialog.askopenfilename(
-                title="Select or Create RTF File",
-                defaultextension=".rtf",
-                filetypes=filetypes
-            )
+            selected_path = open_file()
             if not selected_path:
                 print("user did not select file, aborting")
                 return ""
@@ -176,30 +171,63 @@ def save_entry(url, description, date, draft = ""):
         messagebox.showwarning("Input Error", "Please fill in both fields.")
         return
 
-    # If the file does not exist, open a file selection window to open or create an rtf file
     path = notes_file
 
-    # Open the file in read+write mode
-    try:
-        with open(path, "r+") as file:
-            ## TODO: should have a separate draft and nondraft description. allow a parameter for autogeneration, in which case use get_description_from_server
-            content = file.read()
-            if not content.startswith("{\\rtf1"):
-                content = "{\\rtf1\n" + content
-            if content.endswith("}"):
-                content = content[:-1]
-            file.seek(0)
-            file.write(content)
-            file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
-            file.write(f"\\b Link:\\b0 {url}\\par\n")
-            if draft is not None and draft != "":
-                file.write(f"\\b Draft: \\b0 {draft}\\par\n\\par\n")
-            file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
-            file.write("}")
-            file.truncate()
-        return (path)
-    except Exception as e:
-        return ""
+    # Only proceed if the path ends with '.rtf' (case-insensitive)
+    if path.lower().endswith('.rtf'):
+        try:
+            with open(path, "r+") as file:
+                ## TODO: should have a separate draft and nondraft description. allow a parameter for autogeneration, in which case use get_description_from_server
+                content = file.read()
+                if not content.startswith("{\\rtf1"):
+                    content = "{\\rtf1\n" + content
+                if content.endswith("}"):
+                    content = content[:-1]
+                file.seek(0)
+                file.write(content)
+                file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
+                file.write(f"\\b Link:\\b0 {url}\\par\n")
+                if draft is not None and draft != "":
+                    file.write(f"\\b Draft: \\b0 {draft}\\par\n\\par\n")
+                file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
+                file.write("}")
+                file.truncate()
+            return (path)
+        except Exception as e:
+            return ""
+    else: # assume that path leads to a csv file
+        import csv
+        import os
+
+        # Check if file exists and if it has a header
+        file_exists = os.path.isfile(path)
+        needs_header = True
+        if file_exists:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    first_line = f.readline()
+                    if first_line.strip().lower().replace(" ", "") == "date,time,url,draft,description":
+                        needs_header = False
+            except Exception:
+                pass
+
+        # Prepare row data
+        # If date contains both date and time, split; else, time is empty
+        if " " in date:
+            date_part, time_part = date.split(" ", 1)
+        else:
+            date_part, time_part = date, ""
+        row = [date_part, time_part, url, draft, description]
+
+        try:
+            with open(path, "a", newline='', encoding="utf-8") as csvfile:
+                writer = csv.writer(csvfile)
+                if needs_header:
+                    writer.writerow(["date", "time", "url", "draft", "description"])
+                writer.writerow(row)
+            return path
+        except Exception as e:
+            return ""
 
 
 def clear_entry_and_withdraw():
@@ -318,7 +346,7 @@ def on_window_activated(event):
 
 
 # Bind window close event to restore focus
-def on_closing():
+def on_closing(arg = ""):
     root.withdraw()
     #feels like there's too much calls to restore previous app
     #who calls on_closing?? when??
@@ -442,7 +470,7 @@ def auto_description_requested(arg):
 
 ## for now, start with no notes file 
 #notes_file = "tweet_log.rtf" #for now, filename is set here
-notes_file ="poop.rtf"
+notes_file =""
 
 
 # Create a menu bar# Initialize Tkinter GUI (main application window)
@@ -454,29 +482,30 @@ file_menu = tk.Menu(menu_bar, tearoff=0)
 
 def open_file():
     global notes_file
-    filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
+    filetypes = [("RTF files", "*.rtf"), ("CSV files", "*.csv")]
     selected_path = filedialog.askopenfilename(
-        title="Open RTF File",
-        defaultextension=".rtf",
+        title="Open RTF or csv File",
+        defaultextension=".csv",
         filetypes=filetypes
     )
     if selected_path:
         notes_file = selected_path
         messagebox.showinfo("File Opened", f"Opened file:\n{notes_file}")
+    return selected_path
 
 def new_file():
     global notes_file
-    filetypes = [("RTF files", "*.rtf"), ("All files", "*.*")]
+    filetypes = [("CSV files", "*.csv")]
     selected_path = filedialog.asksaveasfilename(
-        title="Create New RTF File",
-        defaultextension=".rtf",
+        title="Create New csv File",
+        defaultextension=".csv",
         filetypes=filetypes
     )
     if selected_path:
         # Create an empty RTF file with the RTF header
         try:
             with open(selected_path, "w") as f:
-                f.write("{\\rtf1\n}")
+                f.write("date,time,url,draft,description\n")
             notes_file = selected_path
             messagebox.showinfo("File Created", f"Created new file:\n{notes_file}")
         except Exception as e:
@@ -526,6 +555,7 @@ root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is
 desc_entry.bind("<Return>", return_pressed)
 desc_entry.bind("<Shift-Return>", shift_return_pressed)
 desc_entry.bind("<Tab>", auto_description_requested)
+desc_entry.bind("<Escape>", on_closing)
 
 
 # Bind the <FocusIn> event to the root window to autofill link when window gains focus
