@@ -207,8 +207,6 @@ def clear_entry_and_withdraw():
     desc_entry.delete("1.0", tk.END)
 
 
-    ### the whole chunk below should be a separate function
-    # Show a temporary window that says "Entry Saved" and fades out
     saved_window = tk.Toplevel(root)
     saved_window.overrideredirect(True)  # Remove window decorations
     saved_window.attributes("-topmost", True)
