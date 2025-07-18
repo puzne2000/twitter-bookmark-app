@@ -79,8 +79,7 @@ Pipfile.lock
 # Application specific
 get-pip.py
 merged_file.pdf
-tweet_log.rtf
-tweet_log1.rtf
+
 
 # VS Code
 .vscode/
