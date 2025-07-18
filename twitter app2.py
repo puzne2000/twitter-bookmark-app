@@ -459,7 +459,7 @@ def auto_description_requested(arg):
 
     get_description_from_server(tweet_link, description, when_done)
     clear_entry_and_withdraw()
-    
+    return "break"  # Prevent the default tab insertion
 
 
 ########################################
