@@ -46,9 +46,9 @@ def load_csv():
 
 def search_rows(rows, keyword):
     if not keyword:
-        return rows
+        return list(enumerate(rows))
     keyword = keyword.lower()
-    return [row for row in rows if any(keyword in (cell or '').lower() for cell in row)]
+    return [(i, row) for i, row in enumerate(rows) if any(keyword in (cell or '').lower() for cell in row)]
 
 def print_entry(headers, row, idx, total):
     print(f"\nEntry {idx+1} of {total}")
@@ -94,7 +94,8 @@ def main():
         total = len(filtered)
         url_idx = headers.index('url') if 'url' in headers else 2
         while total > 0:
-            print_entry(headers, filtered[idx], idx, total)
+            orig_idx, row = filtered[idx]
+            print_entry(headers, row, idx, total)
             print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [Q]uit: ", end='', flush=True)
             cmd = get_key()
             print(cmd.upper())  # Show the key that was pressed
@@ -111,10 +112,10 @@ def main():
             elif cmd == 's':
                 break  # Break to outer search loop
             elif cmd == 'c':
-                url = filtered[idx][url_idx]
+                url = row[url_idx]
                 copy_to_clipboard(url)
             elif cmd == 'l':
-                url = filtered[idx][url_idx]
+                url = row[url_idx]
                 launch_in_safari(url)
             elif cmd == 'q':
                 return
