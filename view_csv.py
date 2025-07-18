@@ -96,7 +96,7 @@ def main():
         while total > 0:
             orig_idx, row = filtered[idx]
             print_entry(headers, row, idx, total)
-            print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [Q]uit: ", end='', flush=True)
+            print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [D]elete, [Q]uit: ", end='', flush=True)
             cmd = get_key()
             print(cmd.upper())  # Show the key that was pressed
             if cmd == 'n' or cmd == '\r' or cmd == '\n':  # Enter or n
@@ -117,10 +117,28 @@ def main():
             elif cmd == 'l':
                 url = row[url_idx]
                 launch_in_safari(url)
+            elif cmd == 'd':
+                print("Deleting entry...")
+                # Remove from data using orig_idx
+                del data[orig_idx]
+                # Re-filter after deletion
+                filtered = search_rows(data, keyword)
+                total = len(filtered)
+                if idx >= total:
+                    idx = max(0, total - 1)
+                # Save updated data to file
+                with open(csv_file, 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(headers)
+                    writer.writerows(data)
+                print("Entry deleted and file updated.")
+                if total == 0:
+                    print("No more entries to display.")
+                    break
             elif cmd == 'q':
                 return
             else:
-                print("Unknown command. Use N, P, S, C, L, or Q.")
+                print("Unknown command. Use N, P, S, C, L, D, or Q.")
 
 if __name__ == '__main__':
     main() 
