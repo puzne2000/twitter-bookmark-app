@@ -443,6 +443,7 @@ def auto_description_requested(arg):
 
             # Bind Escape to cancel
             dialog.bind("<Escape>", on_cancel)
+            dialog.bind("<Command-w>", on_cancel)
             dialog.protocol("WM_DELETE_WINDOW", on_cancel)
 
             # Wait for the dialog to close
@@ -556,6 +557,7 @@ desc_entry.bind("<Return>", return_pressed)
 desc_entry.bind("<Shift-Return>", shift_return_pressed)
 desc_entry.bind("<Tab>", auto_description_requested)
 desc_entry.bind("<Escape>", on_closing)
+desc_entry.bind("<Command-w>", on_closing)
 
 
 # Bind the <FocusIn> event to the root window to autofill link when window gains focus
