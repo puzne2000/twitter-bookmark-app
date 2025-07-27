@@ -94,4 +94,5 @@ setup.py
 # Added from the code block
 *.rtf 
 *.csv 
-*.plist 
+*.plist
+*.json 
