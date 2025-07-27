@@ -1,3 +1,28 @@
+# -----------------------------------------------------------------------------
+# import_from_safari.py
+#
+# This script extracts bookmarks from the local Safari browser's Bookmarks.plist
+# file and exports them to a CSV file named 'safari_bookmarks.csv'.
+#
+# How to use:
+#   1. Ensure you have access to your Safari 'Bookmarks.plist' file. By default,
+#      this script looks for 'Bookmarks.plist' in your home directory. If your
+#      file is elsewhere, update the 'plist_path' variable accordingly.
+#   2. Run the script:
+#         python import_from_safari.py
+#   3. The script will create (or overwrite) 'safari_bookmarks.csv' in the
+#      current directory, containing all bookmarks with their URLs, folders,
+#      and titles.
+#
+# Requirements:
+#   - Python 3 (uses standard libraries: plistlib, csv, os)
+#
+# Note: This script does not modify your Safari bookmarks or any browser data.
+# -----------------------------------------------------------------------------
+
+
+
+
 import plistlib
 import csv
 import os
