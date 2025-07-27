@@ -71,13 +71,14 @@ def search_rows(rows, keyword):
     if not keyword:
         return list(enumerate(rows))
     keyword = keyword.lower()
-    return [(i, row) for i, row in enumerate(rows) if any(keyword in (str(value) or '').lower() for value in row.values())]
+    return [(i, row) for i, row in enumerate(rows) if any(keyword in (str(value) or '').lower() for key, value in row.items() if not key.startswith('_'))]
 
 def print_entry(row, idx, total):
     print(f"\nEntry {idx+1} of {total}")
     print("=" * 40)
     for key, value in row.items():
-        print(f"{key}:\n{value}\n")
+        if not key.startswith('_'):
+            print(f"{key}:\n{value}\n")
     print("=" * 40)
 
 def copy_to_clipboard(text):
@@ -117,8 +118,8 @@ def main():
         total = len(filtered)
         while total > 0:
             orig_idx, row = filtered[idx]
-            # Get URL key from the current entry, fallback to first key if no 'url' field
-            url_key = 'url' if 'url' in row else list(row.keys())[0] if row else None
+            # Get URL key from the current entry, fallback to first non-underscore key if no 'url' field
+            url_key = 'url' if 'url' in row else next((key for key in row.keys() if not key.startswith('_')), None)
             
             print_entry(row, idx, total)
             print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [D]elete, [Q]uit: ", end='', flush=True)
