@@ -8,6 +8,7 @@ import threading
 from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
+import csv 
 from playsound import playsound
 
 
@@ -117,7 +118,6 @@ def ensure_path(path):
         str: The path to a valid, accessible file, or an empty string if the user cancels.
     """
     success = False
-    # TODO: checking the path and finding another if it doesn't exist should be done in a separate function
     while not success:
         if not os.path.isfile(path):
             print(f"current file name {path} doesn't work will ask user")
@@ -173,32 +173,16 @@ def save_entry(url, description, date, draft = ""):
 
     path = notes_file
 
-    # Only proceed if the path ends with '.rtf' (case-insensitive)
-    if path.lower().endswith('.rtf'):
-        try:
-            with open(path, "r+") as file:
-                ## TODO: should have a separate draft and nondraft description. allow a parameter for autogeneration, in which case use get_description_from_server
-                content = file.read()
-                if not content.startswith("{\\rtf1"):
-                    content = "{\\rtf1\n" + content
-                if content.endswith("}"):
-                    content = content[:-1]
-                file.seek(0)
-                file.write(content)
-                file.write(f"\\fs24 \\b Date:\\b0 {date}\\par\n")
-                file.write(f"\\b Link:\\b0 {url}\\par\n")
-                if draft is not None and draft != "":
-                    file.write(f"\\b Draft: \\b0 {draft}\\par\n\\par\n")
-                file.write(f"\\b Description: \\b0 {description}\\par\n\\par\n")
-                file.write("}")
-                file.truncate()
-            return (path)
-        except Exception as e:
-            return ""
-    else: # assume that path leads to a csv file
-        import csv
-        import os
+    # Prepare row data
+    # If date contains both date and time, split; else, time is empty
+    if " " in date:
+        date_part, time_part = date.split(" ", 1)
+    else:
+        date_part, time_part = date, ""
+    row = [date_part, time_part, url, draft, description]
 
+    # Only proceed if the path ends with '.csv' (case-insensitive)
+    if path.lower().endswith('.csv'):
         # Check if file exists and if it has a header
         file_exists = os.path.isfile(path)
         needs_header = True
@@ -210,15 +194,6 @@ def save_entry(url, description, date, draft = ""):
                         needs_header = False
             except Exception:
                 pass
-
-        # Prepare row data
-        # If date contains both date and time, split; else, time is empty
-        if " " in date:
-            date_part, time_part = date.split(" ", 1)
-        else:
-            date_part, time_part = date, ""
-        row = [date_part, time_part, url, draft, description]
-
         try:
             with open(path, "a", newline='', encoding="utf-8") as csvfile:
                 writer = csv.writer(csvfile)
@@ -227,6 +202,38 @@ def save_entry(url, description, date, draft = ""):
                 writer.writerow(row)
             return path
         except Exception as e:
+            return ""
+    else:
+        # If the file is a JSON, save the row as a dictionary
+        if path.lower().endswith('.json'):
+            import json
+            entry = {
+                "date": date_part,
+                "time": time_part,
+                "url": url,
+                "draft": draft,
+                "description": description
+            }
+            try:
+                # Read existing data if file exists and is valid JSON
+                if os.path.isfile(path):
+                    try:
+                        with open(path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        if not isinstance(data, list):
+                            data = []
+                    except Exception:
+                        data = []
+                else:
+                    data = []
+                data.append(entry)
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                return path
+            except Exception as e:
+                return ""
+        else:
+            # If the file is not a CSV or JSON, do nothing and return empty string
             return ""
 
 
@@ -483,10 +490,13 @@ file_menu = tk.Menu(menu_bar, tearoff=0)
 
 def open_file():
     global notes_file
-    filetypes = [("RTF files", "*.rtf"), ("CSV files", "*.csv")]
+    filetypes = [
+        ("JSON files", "*.json"),
+        ("CSV files", "*.csv")
+   ]
     selected_path = filedialog.askopenfilename(
-        title="Open RTF or csv File",
-        defaultextension=".csv",
+        title="Open CSV or JSON File",
+        defaultextension=".json",
         filetypes=filetypes
     )
     if selected_path:
@@ -496,17 +506,16 @@ def open_file():
 
 def new_file():
     global notes_file
-    filetypes = [("CSV files", "*.csv")]
+    filetypes = [("JSON files", "*.json")]
     selected_path = filedialog.asksaveasfilename(
-        title="Create New csv File",
-        defaultextension=".csv",
+        title="Create New JSON File",
+        defaultextension=".json",
         filetypes=filetypes
     )
     if selected_path:
-        # Create an empty RTF file with the RTF header
         try:
-            with open(selected_path, "w") as f:
-                f.write("date,time,url,draft,description\n")
+            with open(selected_path, "w", encoding="utf-8") as f:
+                f.write("[]")
             notes_file = selected_path
             messagebox.showinfo("File Created", f"Created new file:\n{notes_file}")
         except Exception as e:
