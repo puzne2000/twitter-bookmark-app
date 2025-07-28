@@ -1,0 +1,21 @@
+============   twitter app
+
+-- only verify url before saving
+-- allow different objects other than urls (e.g files paths to pdfs and images)
+-- allow pdf path in url path
+-- use claude for descriptions of PDF files
+-- allow easy switchinig between files, list contents of output folder in window
+
+=============   json viewer
+
+-- watch for changes in file and reload
+-- open multiple files at once
+-- refine searches
+-- allow AI search refinement
+-- allow editing
+-- save backups
+
+==============   descriptions for bookmars 
+
+-- append existing json file
+-- only describe new urls that do not already exist in the file
