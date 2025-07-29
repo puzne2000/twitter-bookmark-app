@@ -1,6 +1,7 @@
 ============   twitter app
 
 -- only verify url before saving
+-- if a url already exists, load the entry
 -- allow different objects other than urls (e.g files paths to pdfs and images)
 -- allow pdf path in url path
 -- use claude for descriptions of PDF files
