@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-view_json.py
+view_json.py ver1.0
 
 This script allows you to search, view, and interact with entries in a JSON file.
 The JSON file should contain an array of dictionaries, where each dictionary 
