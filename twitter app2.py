@@ -9,7 +9,6 @@ from pynput import keyboard  # Use pynput for the hotkey
 import subprocess
 import os
 import csv 
-from playsound import playsound
 
 
 # Global variable to store the previous application
@@ -17,6 +16,123 @@ previous_app = None
 
 import threading
 import requests
+
+
+class EntryWindow:
+    """
+    A class to handle the main entry-editing window for tweet links and descriptions.
+    Supports initializing the window, getting/setting entry values, and associating
+    functions with key presses and button clicks.
+    """
+
+    def __init__(self, master, on_done=None, on_cancel=None):
+        """
+        Initialize the entry window.
+
+        Args:
+            master: The parent Tkinter window or root.
+            on_done: Function to call when the user confirms (Done).
+            on_cancel: Function to call when the user cancels/closes.
+        """
+        self.master = master
+        self.on_done = on_done
+        self.on_cancel = on_cancel
+
+        self.window = tk.Toplevel(master)
+        self.window.title("Edit Entry")
+        self.window.resizable(False, False)
+        self.window.protocol("WM_DELETE_WINDOW", self._handle_cancel)
+        self.window.transient(master)
+        self.window.grab_set()
+
+        # Link label and entry
+        self.label_link = tk.Label(self.window, text="Tweet Link:", anchor="w", font=("Helvetica", 12))
+        self.label_link.grid(row=0, column=0, padx=(15, 5), pady=(15, 5), sticky="w")
+        self.link_entry = tk.Entry(self.window, width=55, font=("Helvetica", 11))
+        self.link_entry.grid(row=0, column=1, padx=(5, 15), pady=(15, 5), sticky="ew")
+
+        # Description label and text box
+        self.label_desc = tk.Label(self.window, text="Description:", anchor="nw", font=("Helvetica", 12))
+        self.label_desc.grid(row=1, column=0, padx=(15, 5), pady=(5, 10), sticky="nw")
+        self.desc_entry = tk.Text(self.window, width=55, height=5, font=("Helvetica", 11))
+        self.desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
+
+        # Done and Cancel buttons
+        self.done_btn = tk.Button(self.window, text="Done", command=self._handle_done)
+        self.done_btn.grid(row=2, column=1, sticky="e", padx=(5, 15), pady=(0, 10))
+
+        # Key bindings
+        self.desc_entry.bind("<Return>", self._return_handler)
+        self.desc_entry.bind("<Shift-Return>", self._shift_return_handler)
+        self.window.bind("<Escape>", lambda e: self._handle_cancel())
+        self.window.bind("<Command-w>", lambda e: self._handle_cancel())
+
+        # Focus
+        self.window.lift()
+        self.window.attributes("-topmost", True)
+        self.link_entry.focus_set()
+
+    def _handle_done(self, event=None):
+        if self.on_done:
+            self.on_done(self.get_link(), self.get_description())
+        self.window.grab_release()
+        self.window.destroy()
+
+    def _handle_cancel(self, event=None):
+        if self.on_cancel:
+            self.on_cancel()
+        self.window.grab_release()
+        self.window.destroy()
+
+    def _return_handler(self, event):
+        # Only trigger done if Shift is not held
+        if not (event.state & 0x0001):  # Shift not held
+            self._handle_done()
+            return "break"  # Prevent newline
+
+    def _shift_return_handler(self, event):
+        # Allow Shift+Return to insert a newline (default behavior)
+        pass
+
+    def get_link(self):
+        return self.link_entry.get().strip()
+
+    def set_link(self, value):
+        self.link_entry.delete(0, tk.END)
+        self.link_entry.insert(0, value or "")
+
+    def get_description(self):
+        return self.desc_entry.get("1.0", tk.END).strip()
+
+    def set_description(self, value):
+        self.desc_entry.delete("1.0", tk.END)
+        self.desc_entry.insert("1.0", value or "")
+
+    def set_on_done(self, func):
+        self.on_done = func
+
+    def set_on_cancel(self, func):
+        self.on_cancel = func
+
+    def bind_key(self, sequence, func):
+        self.window.bind(sequence, func)
+
+    def bind_button(self, button, func):
+        button.config(command=func)
+
+    def show(self):
+        self.window.deiconify()
+        self.window.wait_window()
+
+
+
+
+
+
+
+
+
+
 
 def get_description_from_server(address, draft_description, when_done):
     """
@@ -289,7 +405,7 @@ def attempt_app_to_front():
         return (True)
     else:
         print("bell sound")
-        playsound('/System/Library/Sounds/Frog.aiff', block=False) # Make an error sound
+        subprocess.Popen(['afplay', '/System/Library/Sounds/Frog.aiff']) # Make an error sound (non-blocking)
         restore_previous_app()  # Return focus to the previous app
         return (False)
 
@@ -470,24 +586,6 @@ def auto_description_requested(arg):
     return "break"  # Prevent the default tab insertion
 
 
-########################################
-#
-#  Script execution starts here
-#
-########################################
-
-## for now, start with no notes file 
-#notes_file = "tweet_log.rtf" #for now, filename is set here
-notes_file =""
-
-
-# Create a menu bar# Initialize Tkinter GUI (main application window)
-root = tk.Tk()
-menu_bar = tk.Menu(root)
-
-# Create a "File" menu
-file_menu = tk.Menu(menu_bar, tearoff=0)
-
 def open_file():
     global notes_file
     filetypes = [
@@ -521,6 +619,28 @@ def new_file():
         except Exception as e:
             messagebox.showerror("Error", f"Could not create file:\n{e}")
 
+
+
+########################################
+#
+#  Script execution starts here
+#
+########################################
+
+## for now, start with no notes file 
+#notes_file = "tweet_log.rtf" #for now, filename is set here
+notes_file =""
+
+####
+#### Create a menu bar
+####
+
+# Initialize Tkinter GUI (main application window)
+root = tk.Tk()
+menu_bar = tk.Menu(root)
+
+# Create a "File" menu
+file_menu = tk.Menu(menu_bar, tearoff=0)
 file_menu.add_command(label="Open...", command=open_file)
 file_menu.add_command(label="New...", command=new_file)
 file_menu.add_separator()
@@ -532,9 +652,9 @@ menu_bar.add_cascade(label="File", menu=file_menu)
 root.config(menu=menu_bar)
 
 
-
-
-
+####
+#### root window
+####
 
 root.title("Tweet Logger")  # Set the window title
 root.resizable(False, False)  # Prevent window resizing for a cleaner look

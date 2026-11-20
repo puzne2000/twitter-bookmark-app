@@ -2,6 +2,8 @@
 """
 view_json.py ver1.0
 
+instructions for verion 1.0:
+
 This script allows you to search, view, and interact with entries in a JSON file.
 The JSON file should contain an array of dictionaries, where each dictionary 
 represents a row from a CSV file with column names as keys and values as data.
@@ -31,6 +33,13 @@ except ImportError:
     HAS_CLIP = False
 import subprocess
 
+# CONSTANTS
+DEFAULT_FOLDER = 'output'
+DEFAULT_FILENAME = 'merged.json'
+
+
+
+
 # Cross-platform immediate key input
 def get_key():
     """Get a single key press without requiring Enter"""
@@ -51,14 +60,21 @@ def get_key():
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-def get_json_file():
-    if len(sys.argv) > 1:
-        return sys.argv[1]
+def get_filename(json_file):
+    if json_file:
+        return json_file
     else:
-        return 'output/merged.json'
+        return os.path.join(DEFAULT_FOLDER, DEFAULT_FILENAME)
 
-def load_json():
-    json_file = get_json_file()
+def get_filenames():
+    '''
+    if *all* option is selected, return all files in the DEFAULT_FOLDER
+    otherwise, return the default filename
+    '''
+    # TODO: implement this
+    ...
+
+def load_json(json_file):
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
     
@@ -101,9 +117,21 @@ def launch_in_safari(url):
     except Exception as e:
         print(f"Failed to launch Safari: {e}")
 
-def main():
-    data = load_json()
-    json_file = get_json_file()
+# command line options
+import click
+@click.command()
+@click.argument('json_file', required=False)
+@click.option('--all', '-a', is_flag=True, default=False, help="If set, view all files in the output folder instead of just one.")
+def main(json_file, all):
+    """
+    View and search entries in a JSON file (default: output/merged.json).
+    """
+    if all:
+        pass #TODO: load all files and set data to all of them
+    else:
+        json_file = get_filename(json_file)
+        data = load_json(json_file)
+
     print(f"Loaded {len(data)} entries from {json_file}.")
     while True:
         keyword = input("Enter search keyword (or press Enter to view all, or Q to quit): ").strip()

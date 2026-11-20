@@ -1,3 +1,5 @@
 pyperclip
 pynput
-playsound 
+requests
+click
+pandas  # only for csv_to_json.py
