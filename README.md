@@ -79,7 +79,7 @@ Type a keyword (or Enter for everything), then use single keys:
 | --- | --- |
 | `import_from_safari.py` | Reads `Bookmarks.plist` and writes `safari_bookmarks.csv` |
 | `descriptions_for_bookmarks.py` | Sends each bookmark to the headless_scrapper server and writes a CSV with descriptions |
-| `csv_to_json.py` | Merges every CSV in `input/` into `output/merged.json` (see `README_csv_to_json.md`). **Overwrites `merged.json`**, erasing entries the app saved there; back it up first |
+| `csv_to_json.py` | Adds rows from every CSV in `input/` to `output/merged.json` that aren't already there; never removes or changes existing entries (see `README_csv_to_json.md`) |
 | `rtf_to_csv.py` | Converts the old RTF log format (no longer used) to CSV |
 
 ## License

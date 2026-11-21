@@ -25,9 +25,18 @@ python csv_to_json.py
 
 The script will:
 - Read all `.csv` files from the `./input` folder
-- Merge all rows into a single JSON array
-- Save the result to `./output/merged.json`
-- Create the `output` folder if it doesn't exist
+- Add each row to `./output/merged.json` unless an identical row from the same CSV file is
+  already there (creating the file and the `output` folder if needed)
+- Print, per CSV, how many rows it added and their URLs
+
+Existing entries in `merged.json` are never removed or changed, so entries saved by the
+bookmark app are safe and running the script twice adds nothing the second time.
+
+A row you deleted from `merged.json` (for example in `view_json.py`) is added again the next
+time you run the script: it can't tell a deleted row from a new one. Check the printed list.
+
+Empty CSV cells are written as `null`. (Older versions wrote `NaN`, which isn't valid JSON;
+the script converts any it finds.)
 
 ## Output Format
 

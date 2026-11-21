@@ -2,99 +2,112 @@
 """
 csv_to_json.py
 
-This script reads all CSV files from the ./input folder and merges them into a single
-JSON file at ./output/merged.json. Each row from the CSV files becomes a value in the
-JSON array, with column names as keys.
+Adds the rows of every CSV file in ./input to ./output/merged.json.
+
+Entries already in merged.json are never removed or changed, so entries saved by the
+bookmark app are safe. A CSV row is added only if merged.json doesn't already hold an
+identical row from the same CSV file (all of the CSV's columns equal). Each added row
+gets a `_source_file` field naming its CSV.
+
+Note: a row you deleted from merged.json (e.g. in view_json.py) is added again the next
+time you run this, because the script can't tell a deleted row from a new one.
+
+Empty CSV cells are written as JSON null.
 
 Usage:
     python csv_to_json.py
-
-Requirements:
-    - Python 3.6+
-    - pandas (for CSV reading)
-    - os (standard library)
-    - json (standard library)
-
-The script will:
-1. Create ./output directory if it doesn't exist
-2. Read all .csv files from ./input directory
-3. Merge all rows into a single JSON array
-4. Save the result to ./output/merged.json
 """
 
-import pandas as pd
 import json
-import os
+import math
+from collections import Counter
 from pathlib import Path
 
+import pandas as pd
+
+INPUT_FOLDER = Path("./input")
+OUTPUT_FILE = Path("./output") / "merged.json"
+SOURCE_KEY = "_source_file"
+
+
+def clean(value):
+    """Turn pandas' NaN (an empty cell) into None so the JSON stays valid."""
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    return value
+
+
+def row_key(source, columns, record):
+    """What makes two rows 'the same': their CSV file and every CSV column's value."""
+    return (source,) + tuple(
+        None if clean(record.get(col)) is None else str(clean(record.get(col)))
+        for col in columns
+    )
+
+
+def load_existing():
+    if not OUTPUT_FILE.exists():
+        return []
+    with open(OUTPUT_FILE, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, list):
+        raise SystemExit(f"{OUTPUT_FILE} is not a JSON list; not touching it.")
+    # Older versions of this script wrote empty cells as NaN, which isn't valid JSON.
+    return [{k: clean(v) for k, v in entry.items()} for entry in data]
+
+
 def main():
-    # Define input and output paths
-    input_folder = Path("./input")
-    output_folder = Path("./output")
-    output_file = output_folder / "merged.json"
-    
-    # Create output directory if it doesn't exist
-    output_folder.mkdir(exist_ok=True)
-    
-    # Check if input folder exists
-    if not input_folder.exists():
-        print(f"Error: Input folder '{input_folder}' does not exist.")
-        print("Please create the './input' folder and place your CSV files there.")
+    if not INPUT_FOLDER.exists():
+        print(f"Error: input folder '{INPUT_FOLDER}' does not exist.")
         return
-    
-    # Get all CSV files from input folder
-    csv_files = list(input_folder.glob("*.csv"))
-    
+
+    csv_files = sorted(INPUT_FOLDER.glob("*.csv"))
     if not csv_files:
-        print(f"No CSV files found in '{input_folder}'.")
-        print("Please place CSV files in the './input' folder.")
+        print(f"No CSV files found in '{INPUT_FOLDER}'.")
         return
-    
-    print(f"Found {len(csv_files)} CSV file(s):")
-    for csv_file in csv_files:
-        print(f"  - {csv_file.name}")
-    
-    # List to store all data
-    all_data = []
-    
-    # Process each CSV file
+
+    existing = load_existing()
+    print(f"{OUTPUT_FILE} has {len(existing)} entries.\n")
+
+    added_total = 0
     for csv_file in csv_files:
         try:
-            print(f"\nProcessing {csv_file.name}...")
-            
-            # Read CSV file
             df = pd.read_csv(csv_file)
-            
-            # Convert DataFrame to list of dictionaries
-            file_data = df.to_dict('records')
-            
-            # Add source file information to each record
-            for record in file_data:
-                record['_source_file'] = csv_file.name
-            
-            # Extend the main data list
-            all_data.extend(file_data)
-            
-            print(f"  Added {len(file_data)} records from {csv_file.name}")
-            
         except Exception as e:
-            print(f"  Error processing {csv_file.name}: {e}")
+            print(f"  {csv_file.name}: could not read ({e}), skipped")
             continue
-    
-    if not all_data:
-        print("\nNo data was successfully processed from any CSV files.")
-        return
-    
-    # Write merged data to JSON file
-    try:
-        with open(output_file, 'w', encoding='utf-8') as f:
-            json.dump(all_data, f, indent=2, ensure_ascii=False)
-        
-        print(f"\nSuccessfully merged {len(all_data)} records from {len(csv_files)} file(s)")
-        print(f"Output saved to: {output_file}")
-        
-    except Exception as e:
-        print(f"\nError writing output file: {e}")
+
+        columns = list(df.columns)
+        # How many identical copies of each row merged.json already holds for this file
+        have = Counter(
+            row_key(csv_file.name, columns, e)
+            for e in existing if e.get(SOURCE_KEY) == csv_file.name
+        )
+
+        added = []
+        for record in df.to_dict("records"):
+            key = row_key(csv_file.name, columns, record)
+            if have[key] > 0:
+                have[key] -= 1  # matched an entry that's already there
+                continue
+            entry = {k: clean(v) for k, v in record.items()}
+            entry[SOURCE_KEY] = csv_file.name
+            added.append(entry)
+
+        existing.extend(added)
+        added_total += len(added)
+        print(f"  {csv_file.name}: {len(df)} rows, {len(added)} added")
+        for entry in added[:10]:
+            print(f"      + {entry.get('url', '')}")
+        if len(added) > 10:
+            print(f"      ... and {len(added) - 10} more")
+
+    OUTPUT_FILE.parent.mkdir(exist_ok=True)
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
+        json.dump(existing, f, indent=2, ensure_ascii=False, allow_nan=False)
+
+    print(f"\nAdded {added_total} entries; {OUTPUT_FILE} now has {len(existing)}.")
+
 
 if __name__ == "__main__":
-    main() 
+    main()
