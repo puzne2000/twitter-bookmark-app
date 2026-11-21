@@ -10,8 +10,9 @@ represents a row from a CSV file with column names as keys and values as data.
 
 Usage:
     python view_json.py [json_file]
-    
-If no json_file is specified, defaults to 'merged.json'.
+    python view_json.py --all        # every .json file in the output folder
+
+If no json_file is specified, defaults to 'output/merged.json'.
 
 Features:
 - Search entries by keyword
@@ -36,6 +37,7 @@ import subprocess
 # CONSTANTS
 DEFAULT_FOLDER = 'output'
 DEFAULT_FILENAME = 'merged.json'
+FILE_KEY = '_viewer_file'  # which file an entry was loaded from; hidden, never saved
 
 
 
@@ -68,20 +70,37 @@ def get_filename(json_file):
 
 def get_filenames():
     '''
-    if *all* option is selected, return all files in the DEFAULT_FOLDER
-    otherwise, return the default filename
+    Return every .json file in DEFAULT_FOLDER, sorted by name.
     '''
-    # TODO: implement this
-    ...
+    return sorted(
+        os.path.join(DEFAULT_FOLDER, name)
+        for name in os.listdir(DEFAULT_FOLDER)
+        if name.lower().endswith('.json')
+    )
 
 def load_json(json_file):
+    '''
+    Load a JSON array of entries and tag each with the file it came from,
+    so deletions can be written back to the right file.
+    '''
     with open(json_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    
+
     if not data:
-        return [], []
-    
+        return []
+
+    for entry in data:
+        entry[FILE_KEY] = json_file
     return data
+
+def save_file(data, json_file):
+    '''
+    Write back the entries that belong to json_file, without the internal tag.
+    '''
+    entries = [{k: v for k, v in e.items() if k != FILE_KEY}
+               for e in data if e.get(FILE_KEY) == json_file]
+    with open(json_file, 'w', encoding='utf-8') as f:
+        json.dump(entries, f, indent=2, ensure_ascii=False)
 
 def search_rows(rows, keyword):
     if not keyword:
@@ -127,12 +146,17 @@ def main(json_file, all):
     View and search entries in a JSON file (default: output/merged.json).
     """
     if all:
-        pass #TODO: load all files and set data to all of them
+        files = get_filenames()
+        data = []
+        for f in files:
+            data.extend(load_json(f))
+        source = f"{len(files)} files in {DEFAULT_FOLDER}/"
     else:
         json_file = get_filename(json_file)
         data = load_json(json_file)
+        source = json_file
 
-    print(f"Loaded {len(data)} entries from {json_file}.")
+    print(f"Loaded {len(data)} entries from {source}.")
     while True:
         keyword = input("Enter search keyword (or press Enter to view all, or Q to quit): ").strip()
         if keyword.lower() == 'q':
@@ -173,17 +197,17 @@ def main(json_file, all):
                 launch_in_safari(url)
             elif cmd == 'd':
                 print("Deleting entry...")
-                # Remove from data using orig_idx
+                # Remove from data using orig_idx, remembering which file it came from
+                entry_file = data[orig_idx][FILE_KEY]
                 del data[orig_idx]
                 # Re-filter after deletion
                 filtered = search_rows(data, keyword)
                 total = len(filtered)
                 if idx >= total:
                     idx = max(0, total - 1)
-                # Save updated data to file
-                with open(json_file, 'w', encoding='utf-8') as f:
-                    json.dump(data, f, indent=2, ensure_ascii=False)
-                print("Entry deleted and file updated.")
+                # Save the file the entry came from
+                save_file(data, entry_file)
+                print(f"Entry deleted and {entry_file} updated.")
                 if total == 0:
                     print("No more entries to display.")
                     break

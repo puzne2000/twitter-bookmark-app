@@ -1,106 +1,87 @@
 # Twitter Bookmark App
 
-A simple cross-platform desktop app for quickly saving tweet links and descriptions to a log file, using a global hotkey and a user-friendly Tkinter interface.
+A macOS tool for quickly saving links with a short description: press a global hotkey, type a
+note, done. Entries go to a JSON file you can search later from the terminal. Despite the name,
+it works for any URL.
 
-## Features
-- **Global Hotkey Activation**: Press `Cmd+Shift+V` (macOS) to bring up the app from anywhere.
-- **Clipboard Autofill**: If your clipboard contains a valid URL, it is automatically inserted into the link field.
-- **Quick Entry**: Add a description and save the entry with a confirmation dialog.
-- **RTF Log File**: Entries are saved in `tweet_log.rtf` with date, link, and description.
-- **Focus Restoration**: After saving, the app returns focus to the application you were using before.
-- **Sound Feedback**: Plays a system sound if the clipboard does not contain a valid URL.
+It works together with [headless_scrapper](https://github.com/puzne2000/headless_scrapper), a
+small local server that writes descriptions for you (see "Automatic descriptions" below).
 
-## Requirements
-- Python 3.7+
-- macOS (tested; hotkey and sound features are macOS-specific)
-- The following Python packages:
-  - `tkinter` (usually included with Python)
-  - `pyperclip`
-  - `pynput`
-  - `playsound`
+## Setup
 
-Install dependencies with:
+Both projects use Python 3.11 (Homebrew), each with its own virtual environment kept **outside
+Google Drive** so Drive doesn't sync thousands of package files:
+
 ```bash
-pip install -r requirements.txt
+python3.11 -m venv ~/.local/share/venvs/twitter-bookmark-app
+~/.local/share/venvs/twitter-bookmark-app/bin/pip install -r requirements.txt
 ```
 
-## Usage
-1. **Start the App**
-   - Run the script:
-     ```bash
-     python3 twitter\ app2.py
-     ```
-   - The app will hide itself and run in the background, listening for the hotkey.
+Set up headless_scrapper the same way (its README has the steps), at
+`~/.local/share/venvs/headless_scrapper`.
 
-2. **Save a Tweet**
-   - Copy a tweet link to your clipboard.
-   - Press `Cmd+Shift+V`.
-   - The app window will appear with the link autofilled.
-   - Enter a description.
-   - Press `Enter` (or click "Done?") to confirm and save.
-   - The entry is saved to `tweet_log.rtf` and the app hides itself, returning you to your previous app.
+macOS must allow the hotkey: System Settings → Privacy & Security → **Input Monitoring** and
+**Accessibility**, for the app that runs the launcher (usually Terminal). Quit and reopen
+Terminal after changing this. The app prints "This process is not trusted!" at startup even when
+the hotkey works, so ignore that line and just try the hotkey.
 
-3. **Multi-line Descriptions**
-   - Press `Shift+Enter` to insert a newline in the description box.
+## Running
 
-4. **Error Sound**
-   - If the clipboard does not contain a valid URL, a system sound will play and the app will not appear.
+Double-click `run_twitter_app2.command`. It:
 
-## CSV Viewer Tool
+1. starts the headless_scrapper server if it isn't already running (port 5000),
+2. starts the app, which hides itself and waits for the hotkey.
 
-The `view_csv.py` script provides an interactive command-line interface for browsing and searching CSV files, particularly useful for viewing bookmark collections with descriptions.
+Keep that Terminal window open; closing it quits the app. Logs:
+`~/Library/Logs/twitter-bookmark-app/app.log` and `server.log`.
 
-### What it's used for
-- Browse through CSV entries one by one
-- Search for specific keywords across all fields
-- Copy URLs to clipboard for easy access
-- Launch URLs directly in Safari
-- Navigate through large datasets efficiently
+## Saving a link
 
-### Command Line Usage
+1. Copy a URL.
+2. Press **Cmd+Shift+V**. The window opens with the link filled in. If the clipboard has no URL,
+   you hear the Frog sound and nothing opens.
+3. Type a description, press **Enter**, then **Enter** again to confirm.
+   **Shift+Enter** adds a new line; **Esc** or **Cmd+W** cancels.
+
+### Automatic descriptions
+
+Press **Tab** in the description box instead of Enter. The app sends the link (and what you typed,
+as a draft) to the headless_scrapper server, which reads the page and asks an AI model for a short
+description. A box then shows the result for you to edit; Enter saves it. Your draft is saved in
+the `draft` field.
+
+## Where entries go
+
+By default `output/merged.json`. **File → Open...** switches to another JSON (or CSV) file;
+**File → New...** creates an empty one. Each entry has `date`, `time`, `url`, `draft` and
+`description`.
+
+Only pick a CSV that the app itself created: in any other CSV it adds its own header row in the
+middle of the file.
+
+## Searching saved entries: `view_json.py`
+
 ```bash
-# Use default file (poop.csv)
-python view_csv.py
-
-# Specify a CSV file
-python view_csv.py safari_bookmarks_descripbed.csv
+~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py               # output/merged.json
+~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py output/AI.json
+~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py --all         # every .json in output/
 ```
 
-### Input File Format
-The script expects a CSV file with headers. It automatically detects the 'url' column or defaults to the third column (index 2) for URL operations.
+Type a keyword (or Enter for everything), then use single keys:
+**N**/Enter next, **P** previous, **S** new search, **C** copy URL, **L** open in Safari,
+**D** delete (written back to the file the entry came from), **Q** quit.
 
-Example CSV format:
-```csv
-url,folder,title,description
-https://example.com,buy,Example Site,This is a description
-https://another.com,news,Another Site,Another description
-```
+`view_csv.py` is the older CSV version of the same viewer.
 
-### Keyboard Commands
-When viewing entries, use these commands:
+## One-off import scripts
 
-- **N** or **Enter**: Next entry
-- **P**: Previous entry  
-- **S**: New search (returns to search prompt)
-- **C**: Copy current URL to clipboard
-- **L**: Launch current URL in Safari
-- **Q**: Quit the viewer
-
-### Search Functionality
-- Enter keywords to filter entries
-- Search works across all columns (url, folder, title, description)
-- Case-insensitive matching
-- Press Enter without keywords to view all entries
-
-## Customization
-- **Hotkey**: Change the hotkey by editing the `hotkey_listener` function in the script.
-- **Sound**: Change the error sound by editing the path in the `playsound` call (e.g., `/System/Library/Sounds/Frog.aiff`).
-- **Log File**: Entries are saved in `tweet_log.rtf` in the script directory.
-
-## Notes
-- The app is designed for macOS. Hotkey and sound features may need adjustment for Windows/Linux.
-- The app uses AppleScript via `osascript` to restore focus to the previous application (macOS only).
-- The GUI is built with Tkinter for simplicity and portability.
+| Script | What it does |
+| --- | --- |
+| `import_from_safari.py` | Reads `Bookmarks.plist` and writes `safari_bookmarks.csv` |
+| `descriptions_for_bookmarks.py` | Sends each bookmark to the headless_scrapper server and writes a CSV with descriptions |
+| `csv_to_json.py` | Merges every CSV in `input/` into `output/merged.json` (see `README_csv_to_json.md`). **Overwrites `merged.json`**, erasing entries the app saved there; back it up first |
+| `rtf_to_csv.py` | Converts the old RTF log format (no longer used) to CSV |
 
 ## License
-MIT License (add your own if desired) 
+
+MIT
