@@ -627,9 +627,9 @@ def new_file():
 #
 ########################################
 
-## for now, start with no notes file 
-#notes_file = "tweet_log.rtf" #for now, filename is set here
-notes_file =""
+# Default file to save entries to. If it is missing or not writable,
+# ensure_path() below asks the user to pick one; File > Open switches files.
+notes_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "merged.json")
 
 ####
 #### Create a menu bar

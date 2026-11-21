@@ -24,4 +24,4 @@ else
 fi
 
 cd "$APP_DIR"
-exec "$APP_PY" "twitter app2.py"
+"$APP_PY" -u "twitter app2.py" 2>&1 | tee -a "$LOG_DIR/app.log"
