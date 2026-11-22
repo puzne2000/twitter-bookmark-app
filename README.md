@@ -1,5 +1,8 @@
 # Twitter Bookmark App
 
+**Using it day to day?** See [GUIDE.md](GUIDE.md), the plain-language user guide. This README is
+the technical reference.
+
 A macOS tool for quickly saving links with a short description: press a global hotkey, type a
 note, done. Entries go to a JSON file you can search later from the terminal. Despite the name,
 it works for any URL.
