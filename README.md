@@ -86,6 +86,21 @@ Type a keyword (or Enter for everything), then use single keys:
 **N**/Enter next, **P** previous, **S** new search, **C** copy URL, **L** open in Safari,
 **D** delete (written back to the file the entry came from), **Q** quit.
 
+**Safe to leave open.** Before each key press the viewer checks whether a file changed on disk
+(for example the app saved a link, or another viewer deleted an entry) and re-reads it, saying
+"changed on disk - reloaded". If the entry on screen was changed elsewhere it shows the new
+version; if it was removed, it says so and moves on. Deletes and edits are applied to the file
+as it is on disk at that moment, so nothing saved meanwhile is lost; if the entry was changed or
+removed elsewhere since you saw it, nothing is written and the viewer tells you.
+
+**Backups.** Before every delete or edit, the file is copied to `output/backups/` (a
+`backups` folder next to the file) as e.g. `merged.2026-11-22_153000.json`. The newest 30 per
+file are kept; older ones are deleted automatically. To undo a change, quit the viewer and copy
+a backup back over the file, e.g.
+`cp output/backups/merged.2026-11-22_153000.json output/merged.json` (anything saved after that
+backup is lost, so pick the newest one that is still good). Backups sit in a subfolder so the
+app's **Save to:** list and `--all` don't pick them up; Google Drive syncs them too.
+
 `view_csv.py` is the older CSV version of the same viewer.
 
 ## One-off import scripts

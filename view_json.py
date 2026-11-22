@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """
-view_json.py ver1.0
+view_json.py ver1.1
 
-instructions for verion 1.0:
-
-This script allows you to search, view, and interact with entries in a JSON file.
-The JSON file should contain an array of dictionaries, where each dictionary 
-represents a row from a CSV file with column names as keys and values as data.
+Search, view and manage the bookmark entries saved by the bookmark app. Each JSON file is an
+array of dictionaries (one per entry).
 
 Usage:
     python view_json.py [json_file]
@@ -20,12 +17,18 @@ Features:
 - Copy URLs to clipboard
 - Launch URLs in Safari
 - Delete entries
-- Interactive command-line interface
+- Reload automatically when a file changes on disk (e.g. the bookmark app saved an entry)
+- Back up a file before every change
 """
 
 import json
-import sys
 import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+from datetime import datetime
 
 try:
     import pyperclip
@@ -38,6 +41,8 @@ import subprocess
 DEFAULT_FOLDER = 'output'
 DEFAULT_FILENAME = 'merged.json'
 FILE_KEY = '_viewer_file'  # which file an entry was loaded from; hidden, never saved
+BACKUP_DIR = 'backups'     # subfolder next to each file
+BACKUPS_TO_KEEP = 30       # per file
 
 
 
@@ -51,8 +56,7 @@ def get_key():
     else:  # Unix-like systems (macOS, Linux)
         import tty
         import termios
-        import sys
-        
+
         fd = sys.stdin.fileno()
         old_settings = termios.tcgetattr(fd)
         try:
@@ -71,6 +75,7 @@ def get_filename(json_file):
 def get_filenames():
     '''
     Return every .json file in DEFAULT_FOLDER, sorted by name.
+    (Backups live in a subfolder, so they are not included.)
     '''
     return sorted(
         os.path.join(DEFAULT_FOLDER, name)
@@ -78,35 +83,236 @@ def get_filenames():
         if name.lower().endswith('.json')
     )
 
+
+# ---------------------------------------------------------------------------
+# Reading and writing files
+# ---------------------------------------------------------------------------
+
+def read_entries(json_file):
+    '''
+    Read a JSON array of entries as it is on disk (no tags). A missing or empty file is [].
+    If the file can't be parsed (for instance the app is half-way through writing it), try
+    once more after a short pause before giving up with the error.
+    '''
+    if not os.path.exists(json_file):
+        return []
+    for attempt in range(2):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                text = f.read()
+            data = json.loads(text) if text.strip() else []
+            break
+        except json.JSONDecodeError:
+            if attempt:
+                raise
+            time.sleep(0.3)
+    if not isinstance(data, list):
+        raise ValueError(f"{json_file} is not a list of entries")
+    return data
+
 def load_json(json_file):
     '''
     Load a JSON array of entries and tag each with the file it came from,
-    so deletions can be written back to the right file.
+    so changes can be written back to the right file.
     '''
-    with open(json_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-
-    if not data:
-        return []
-
+    data = read_entries(json_file)
     for entry in data:
         entry[FILE_KEY] = json_file
     return data
+
+def write_entries(entries, json_file):
+    '''
+    Write entries in the same format the bookmark app uses (indent=2, UTF-8 kept as is), via a
+    temporary file that then replaces the original, so a crash never leaves half a file.
+    '''
+    folder = os.path.dirname(os.path.abspath(json_file))
+    fd, tmp = tempfile.mkstemp(prefix='.viewer-', suffix='.tmp', dir=folder)
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(entries, f, indent=2, ensure_ascii=False)
+        os.replace(tmp, json_file)
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
 
 def save_file(data, json_file):
     '''
     Write back the entries that belong to json_file, without the internal tag.
     '''
-    entries = [{k: v for k, v in e.items() if k != FILE_KEY}
-               for e in data if e.get(FILE_KEY) == json_file]
-    with open(json_file, 'w', encoding='utf-8') as f:
-        json.dump(entries, f, indent=2, ensure_ascii=False)
+    write_entries([strip_tag(e) for e in data if e.get(FILE_KEY) == json_file], json_file)
+
+def backup_file(json_file):
+    '''
+    Copy json_file into a "backups" folder next to it, as <name>.<YYYY-MM-DD_HHMMSS>.json,
+    and delete all but the newest BACKUPS_TO_KEEP backups of that file.
+    Decided with the user: back up before every write (delete or edit), in output/backups/
+    (a subfolder, so neither the app's "Save to:" list nor --all picks the backups up), and
+    keep the last 30 per file. Returns the backup's path, or None if there was no file.
+    '''
+    if not os.path.exists(json_file):
+        return None
+    folder = os.path.join(os.path.dirname(os.path.abspath(json_file)), BACKUP_DIR)
+    os.makedirs(folder, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(json_file))[0]
+    stamp = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+    pattern = re.compile(re.escape(stem) + r'\.\d{4}-\d\d-\d\d_\d{6}(?:_(\d+))?\.json$')
+    # Several writes in the same second get _2, _3, ... (one more than the highest so far).
+    same_second = [pattern.match(name) for name in os.listdir(folder)
+                   if name.startswith(f"{stem}.{stamp}") and pattern.match(name)]
+    if same_second:
+        n = 1 + max(int(m.group(1) or 1) for m in same_second)
+        target = os.path.join(folder, f"{stem}.{stamp}_{n}.json")
+    else:
+        target = os.path.join(folder, f"{stem}.{stamp}.json")
+    shutil.copy2(json_file, target)
+
+    def sort_key(name):
+        m = pattern.match(name)
+        return (name[:len(stem) + 18], int(m.group(1) or 1))
+    backups = sorted((name for name in os.listdir(folder) if pattern.match(name)), key=sort_key)
+    for name in backups[:-BACKUPS_TO_KEEP]:
+        os.remove(os.path.join(folder, name))
+    return target
+
+
+# ---------------------------------------------------------------------------
+# Identifying entries
+# ---------------------------------------------------------------------------
+
+def strip_tag(entry):
+    return {k: v for k, v in entry.items() if k != FILE_KEY}
+
+def entry_id(entry):
+    '''
+    What identifies an entry even after its description is edited. App-saved entries:
+    url + date + time (the same three fields the bookmark app uses to find an entry again,
+    so they are never changed here). Safari imports have no date: url + title + folder.
+    URLs alone repeat, so they are never enough.
+    '''
+    if entry.get('date') or entry.get('time'):
+        key = ('app', entry.get('url'), entry.get('date'), entry.get('time'))
+    else:
+        key = ('other', entry.get('url'), entry.get('title'), entry.get('folder'))
+    return (entry.get(FILE_KEY),) + key
+
+def find_entry(rows, entry):
+    '''
+    Position of entry in rows: an identical entry if there is one, otherwise one with the
+    same identity (url/date/time) whose content changed. None if it is not there.
+    '''
+    plain = strip_tag(entry)
+    for i, row in enumerate(rows):
+        if row.get(FILE_KEY) == entry.get(FILE_KEY) and strip_tag(row) == plain:
+            return i
+    ident = entry_id(entry)
+    for i, row in enumerate(rows):
+        if entry_id(row) == ident:
+            return i
+    return None
+
+def change_entry(json_file, entry, change):
+    '''
+    Apply a change to one entry, working on the file as it is on disk right now (not on the
+    viewer's copy), so nothing another program saved meanwhile is lost.
+    change(e) edits e in place; change=None deletes the entry.
+    Returns 'ok', 'changed' (someone else changed the entry since it was shown, so nothing
+    was written) or 'gone' (the entry is no longer in the file, nothing was written).
+    The file is backed up before it is written.
+    '''
+    entries = read_entries(json_file)
+    plain = strip_tag(entry)
+    pos = next((i for i, e in enumerate(entries) if e == plain), None)
+    if pos is None:
+        ident = entry_id(plain)
+        if any(entry_id(e) == ident for e in entries if isinstance(e, dict)):
+            return 'changed'
+        return 'gone'
+    if change is None:
+        del entries[pos]
+    else:
+        change(entries[pos])
+    backup_file(json_file)
+    write_entries(entries, json_file)
+    return 'ok'
+
+
+# ---------------------------------------------------------------------------
+# The loaded files
+# ---------------------------------------------------------------------------
+
+def file_signature(json_file):
+    try:
+        st = os.stat(json_file)
+        return (st.st_mtime_ns, st.st_size)
+    except FileNotFoundError:
+        return None
+
+class Library:
+    '''
+    The entries of one or more files, kept in step with the files on disk.
+    Decided with the user: check every file's modification time before each key press and
+    re-read a file whenever it changed, so the screen never shows (or acts on) stale data.
+    '''
+
+    def __init__(self, files):
+        self.files = list(files)
+        self.entries = {}
+        self.signatures = {}
+        for f in self.files:
+            self.reload(f)
+
+    @property
+    def data(self):
+        return [e for f in self.files for e in self.entries[f]]
+
+    def reload(self, json_file):
+        sig = file_signature(json_file)
+        self.entries[json_file] = load_json(json_file)
+        self.signatures[json_file] = sig
+
+    def refresh(self):
+        '''Re-read every file that changed on disk. Returns True if any did.'''
+        changed = False
+        for f in self.files:
+            if file_signature(f) == self.signatures.get(f):
+                continue
+            try:
+                self.reload(f)
+            except (OSError, ValueError) as e:
+                print(f"\n{f} changed on disk but could not be read ({e}); showing the old copy.")
+                continue
+            changed = True
+            print(f"\n{f} changed on disk - reloaded (now {len(self.entries[f])} entries).")
+        return changed
+
+
+def relocate(old, idx, new, quiet=False):
+    '''
+    After the data changed, find where the entry that was on screen (old[idx]) is in the new
+    search results. If it changed, say so and show the new version; if it is gone, say so
+    and move on to the next entry that still exists. Returns the new index.
+    '''
+    current = old[idx]
+    pos = find_entry(new, current)
+    if pos is not None:
+        if not quiet and strip_tag(new[pos]) != strip_tag(current):
+            print("The entry on screen was changed by another program; showing the new version.")
+        return pos
+    if not quiet:
+        print("The entry on screen was removed by another program.")
+    for row in old[idx + 1:]:
+        pos = find_entry(new, row)
+        if pos is not None:
+            return pos
+    return max(0, len(new) - 1)
+
 
 def search_rows(rows, keyword):
     if not keyword:
-        return list(enumerate(rows))
+        return list(rows)
     keyword = keyword.lower()
-    return [(i, row) for i, row in enumerate(rows) if any(keyword in (str(value) or '').lower() for key, value in row.items() if not key.startswith('_'))]
+    return [row for row in rows if any(keyword in (str(value) or '').lower() for key, value in row.items() if not key.startswith('_'))]
 
 def print_entry(row, idx, total):
     print(f"\nEntry {idx+1} of {total}")
@@ -136,6 +342,12 @@ def launch_in_safari(url):
     except Exception as e:
         print(f"Failed to launch Safari: {e}")
 
+NOT_WRITTEN = {
+    'changed': "Another program changed this entry since it was shown, so nothing was written. "
+               "Here it is again:",
+    'gone': "Another program removed this entry, so nothing was written.",
+}
+
 # command line options
 import click
 @click.command()
@@ -147,32 +359,37 @@ def main(json_file, all):
     """
     if all:
         files = get_filenames()
-        data = []
-        for f in files:
-            data.extend(load_json(f))
         source = f"{len(files)} files in {DEFAULT_FOLDER}/"
     else:
-        json_file = get_filename(json_file)
-        data = load_json(json_file)
-        source = json_file
+        files = [get_filename(json_file)]
+        source = files[0]
+    lib = Library(files)
 
-    print(f"Loaded {len(data)} entries from {source}.")
+    print(f"Loaded {len(lib.data)} entries from {source}.")
     while True:
         keyword = input("Enter search keyword (or press Enter to view all, or Q to quit): ").strip()
         if keyword.lower() == 'q':
             break
-        filtered = search_rows(data, keyword)
+        lib.refresh()
+        filtered = search_rows(lib.data, keyword)
         print(f"Found {len(filtered)} matching entries.")
         if not filtered:
             print("No entries to display. Try another search.")
             continue
         idx = 0
-        total = len(filtered)
-        while total > 0:
-            orig_idx, row = filtered[idx]
+        while filtered:
+            # Pick up changes other programs made since the last key press.
+            if lib.refresh():
+                old, filtered = filtered, search_rows(lib.data, keyword)
+                if not filtered:
+                    print("No more entries to display.")
+                    break
+                idx = relocate(old, idx, filtered)
+            total = len(filtered)
+            row = filtered[idx]
             # Get URL key from the current entry, fallback to first non-underscore key if no 'url' field
             url_key = 'url' if 'url' in row else next((key for key in row.keys() if not key.startswith('_')), None)
-            
+
             print_entry(row, idx, total)
             print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [D]elete, [Q]uit: ", end='', flush=True)
             cmd = get_key()
@@ -196,25 +413,22 @@ def main(json_file, all):
                 url = row.get(url_key, '')
                 launch_in_safari(url)
             elif cmd == 'd':
-                print("Deleting entry...")
-                # Remove from data using orig_idx, remembering which file it came from
-                entry_file = data[orig_idx][FILE_KEY]
-                del data[orig_idx]
-                # Re-filter after deletion
-                filtered = search_rows(data, keyword)
-                total = len(filtered)
-                if idx >= total:
-                    idx = max(0, total - 1)
-                # Save the file the entry came from
-                save_file(data, entry_file)
-                print(f"Entry deleted and {entry_file} updated.")
-                if total == 0:
+                entry_file = row[FILE_KEY]
+                result = change_entry(entry_file, row, None)
+                if result != 'ok':
+                    print(NOT_WRITTEN[result])
+                    continue  # the next refresh shows what changed
+                lib.reload(entry_file)
+                old, filtered = filtered, search_rows(lib.data, keyword)
+                print(f"Entry deleted and {entry_file} updated (backup in {BACKUP_DIR}/).")
+                if not filtered:
                     print("No more entries to display.")
                     break
+                idx = relocate(old, idx, filtered, quiet=True)
             elif cmd == 'q':
                 return
             else:
                 print("Unknown command. Use N, P, S, C, L, D, or Q.")
 
 if __name__ == '__main__':
-    main() 
+    main()
