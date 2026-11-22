@@ -19,6 +19,10 @@ previous_app = None
 existing_entry = None
 # The link the description box currently belongs to
 desc_for_link = None
+# The "Save to:" drop-down (created with the window, below)
+save_to_menu = None
+save_to_var = None
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output")
 
 import threading
 import requests
@@ -482,6 +486,7 @@ def attempt_app_to_front():
     previous_app = get_active_app()
 
     if autofill_link(link_entry): #the clipboard contains a link
+        refresh_file_menu()  # pick up files added to output/ since last time
         load_existing_entry(link_entry.get())
         root.deiconify()
         root.lift()
@@ -706,7 +711,6 @@ def open_file():
     )
     if selected_path:
         notes_file = selected_path
-        messagebox.showinfo("File Opened", f"Opened file:\n{notes_file}")
     return selected_path
 
 def new_file():
@@ -722,9 +726,51 @@ def new_file():
             with open(selected_path, "w", encoding="utf-8") as f:
                 f.write("[]")
             notes_file = selected_path
-            messagebox.showinfo("File Created", f"Created new file:\n{notes_file}")
         except Exception as e:
             messagebox.showerror("Error", f"Could not create file:\n{e}")
+
+
+
+def file_label(path):
+    """Short name for the drop-down: the file name for files in output/, else parent/name."""
+    if os.path.dirname(os.path.abspath(path)) == OUTPUT_DIR:
+        return os.path.basename(path)
+    return os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))
+
+
+def refresh_file_menu():
+    """Rebuild the "Save to:" drop-down: every JSON file in output/, the current file, new/other."""
+    if save_to_menu is None:
+        return
+    try:
+        paths = sorted((os.path.join(OUTPUT_DIR, f) for f in os.listdir(OUTPUT_DIR)
+                        if f.lower().endswith(".json")),
+                       key=lambda p: (os.path.basename(p) != "merged.json", os.path.basename(p).lower()))
+    except OSError:
+        paths = []
+    if notes_file and os.path.abspath(notes_file) not in [os.path.abspath(p) for p in paths]:
+        paths.append(notes_file)
+    menu = save_to_menu["menu"]
+    menu.delete(0, "end")
+    for path in paths:
+        menu.add_command(label=file_label(path), command=lambda p=path: choose_file(p))
+    menu.add_separator()
+    menu.add_command(label="New file…", command=lambda: choose_file(None, new_file))
+    menu.add_command(label="Other file…", command=lambda: choose_file(None, open_file))
+    save_to_var.set(file_label(notes_file) if notes_file else "(no file)")
+
+
+def choose_file(path, picker=None):
+    """Switch the file entries are saved to (from the drop-down or the File menu)."""
+    global notes_file
+    if picker is not None:
+        picker()  # open_file / new_file set notes_file themselves; cancelling keeps the old one
+    elif path:
+        notes_file = path
+    refresh_file_menu()
+    link = link_entry.get().strip()
+    if link:
+        load_existing_entry(link)  # "already saved?" depends on the file
 
 
 
@@ -748,8 +794,8 @@ menu_bar = tk.Menu(root)
 
 # Create a "File" menu
 file_menu = tk.Menu(menu_bar, tearoff=0)
-file_menu.add_command(label="Open...", command=open_file)
-file_menu.add_command(label="New...", command=new_file)
+file_menu.add_command(label="Open...", command=lambda: choose_file(None, open_file))
+file_menu.add_command(label="New...", command=lambda: choose_file(None, new_file))
 file_menu.add_separator()
 file_menu.add_command(label="Exit", command=root.quit)
 
@@ -784,6 +830,13 @@ desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
 # Shows when the link is already saved (and that saving will update it)
 status_label = tk.Label(root, text="", anchor="w", fg="gray40", font=("Helvetica", 11))
 status_label.grid(row=2, column=1, padx=(5, 15), pady=(0, 10), sticky="w")
+
+# "Save to:" drop-down: which file entries go to
+label_save_to = tk.Label(root, text="Save to:", anchor="w", font=("Helvetica", 12))
+label_save_to.grid(row=3, column=0, padx=(15, 5), pady=(0, 15), sticky="w")
+save_to_var = tk.StringVar(root)
+save_to_menu = tk.OptionMenu(root, save_to_var, "")
+save_to_menu.grid(row=3, column=1, padx=(5, 15), pady=(0, 15), sticky="w")
 
 # Configure grid weights for better resizing behavior (optional, since resizing is disabled)
 root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is set to (false, flase) as above
@@ -823,6 +876,7 @@ hotkey_thread.start()
 root.withdraw()
 
 notes_file = ensure_path(notes_file)
+refresh_file_menu()
 
 
 # Start the Tkinter main loop (this keeps the app running and responsive)

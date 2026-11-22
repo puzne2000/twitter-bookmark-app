@@ -65,9 +65,11 @@ the `draft` field.
 
 ## Where entries go
 
-By default `output/merged.json`. **File → Open...** switches to another JSON (or CSV) file;
-**File → New...** creates an empty one. Each entry has `date`, `time`, `url`, `draft` and
-`description`.
+The **Save to:** drop-down at the bottom of the entry window shows the file entries go to and
+lists every JSON file in `output/`; pick one and it stays selected for later saves. **New file…**
+creates an empty one, **Other file…** picks any JSON (or CSV) file (also under the File menu).
+Each time the app starts it goes back to `output/merged.json`. Each entry has `date`, `time`,
+`url`, `draft` and `description` (plus `updated` once edited).
 
 Only pick a CSV that the app itself created: in any other CSV it adds its own header row in the
 middle of the file.
