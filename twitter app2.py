@@ -14,6 +14,12 @@ import csv
 # Global variable to store the previous application
 previous_app = None
 
+# The saved entry the window is currently editing (None = a new entry).
+# Holds its url/date/time so saving can find and update it.
+existing_entry = None
+# The link the description box currently belongs to
+desc_for_link = None
+
 import threading
 import requests
 
@@ -253,7 +259,34 @@ def ensure_path(path):
 
 
 
-def save_entry(url, description, date, draft = ""):
+def find_existing_entry(url):
+    """
+    Return the newest entry in the current JSON notes file whose url equals url,
+    or None. (CSV files are not searched.)
+    """
+    import json
+    if not notes_file or not notes_file.lower().endswith('.json') or not os.path.isfile(notes_file):
+        return None
+    try:
+        with open(notes_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return None
+    if not isinstance(data, list):
+        return None
+    url = url.strip()
+    for entry in reversed(data):
+        if isinstance(entry, dict) and str(entry.get("url", "")).strip() == url:
+            return dict(entry)
+    return None
+
+
+def same_entry(a, b):
+    """True if a and b are the same saved entry (same url, date and time)."""
+    return all(a.get(k) == b.get(k) for k in ("url", "date", "time"))
+
+
+def save_entry(url, description, date, draft = "", update=None):
     """
     Save a tweet entry to the notes file in RTF format.
 
@@ -267,6 +300,10 @@ def save_entry(url, description, date, draft = ""):
         description (str): The main description of the tweet.
         date (str): The date and time of the entry.
         draft (str, optional): An optional draft description to include. Defaults to "".
+        update (dict, optional): An existing entry (from find_existing_entry) to update instead
+            of adding a new one. Its description (and draft, if given) are replaced and an
+            "updated" date is added; its original date is kept. JSON files only; if the entry
+            is no longer in the file, a new entry is added.
 
     Returns:
         str: The path to the notes file if successful, or an empty string if an error occurs.
@@ -342,7 +379,17 @@ def save_entry(url, description, date, draft = ""):
                         data = []
                 else:
                     data = []
-                data.append(entry)
+                target = None
+                if update is not None:
+                    target = next((e for e in reversed(data)
+                                   if isinstance(e, dict) and same_entry(e, update)), None)
+                if target is not None:
+                    target["description"] = description
+                    if draft:
+                        target["draft"] = draft
+                    target["updated"] = date
+                else:
+                    data.append(entry)
                 with open(path, "w", encoding="utf-8") as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 return path
@@ -354,8 +401,12 @@ def save_entry(url, description, date, draft = ""):
 
 
 def clear_entry_and_withdraw():
+    global existing_entry, desc_for_link
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
+    existing_entry = None
+    desc_for_link = None
+    status_label.config(text="")
 
 
     saved_window = tk.Toplevel(root)
@@ -398,6 +449,7 @@ def attempt_app_to_front():
     previous_app = get_active_app()
 
     if autofill_link(link_entry): #the clipboard contains a link
+        load_existing_entry(link_entry.get())
         root.deiconify()
         root.lift()
         root.focus_force()
@@ -408,6 +460,27 @@ def attempt_app_to_front():
         subprocess.Popen(['afplay', '/System/Library/Sounds/Frog.aiff']) # Make an error sound (non-blocking)
         restore_previous_app()  # Return focus to the previous app
         return (False)
+
+def load_existing_entry(url):
+    """
+    If url is already saved in the notes file, show its description and when it was
+    saved, and remember the entry so saving updates it instead of adding a duplicate.
+    """
+    global existing_entry, desc_for_link
+    found = find_existing_entry(url)
+    if found is not None:
+        existing_entry = found
+        desc_entry.delete("1.0", tk.END)
+        desc_entry.insert("1.0", found.get("description") or "")
+        when = " ".join(x for x in (found.get("date"), found.get("time")) if x) or "an earlier import"
+        status_label.config(text=f"Already saved ({when}). Saving will update that entry.")
+    else:
+        existing_entry = None
+        if desc_for_link is not None and desc_for_link != url:
+            # leftover text from a different, cancelled link
+            desc_entry.delete("1.0", tk.END)
+        status_label.config(text="")
+    desc_for_link = url
 
 # This is called by the hotkey listener when the hotkey is pressed
 def on_hotkey():
@@ -485,7 +558,7 @@ def entry_from_interface():
 def entry_is_done():
     ## thess should be read elsewhere and passed as parameters to save_entry
     tweet_link, description, date = entry_from_interface() 
-    notes_file = save_entry(tweet_link, description, date)
+    save_entry(tweet_link, description, date, update=existing_entry)
     clear_entry_and_withdraw()
 
 def return_pressed(event=None):
@@ -502,6 +575,7 @@ def auto_description_requested(arg):
     print(f"autro description with arg {arg}")
     
     tweet_link, description, date = entry_from_interface() 
+    editing = existing_entry  # captured now: the window is cleared before the server answers
     def when_done(result):
         print("server called me to save the entry")
         # Create a modal dialog for editing the description
@@ -577,9 +651,9 @@ def auto_description_requested(arg):
         edited_result = show_editable_description_dialog(result)
         print(f"result: {result} \nEditted result: {edited_result}")
         if edited_result is not None:
-            save_entry(tweet_link, edited_result, date, description)
+            save_entry(tweet_link, edited_result, date, description, update=editing)
         else:
-            save_entry(tweet_link, description, date)
+            save_entry(tweet_link, description, date, update=editing)
 
     get_description_from_server(tweet_link, description, when_done)
     clear_entry_and_withdraw()
@@ -673,6 +747,10 @@ label_desc = tk.Label(root, text="Description:", anchor="nw", font=("Helvetica",
 label_desc.grid(row=1, column=0, padx=(15, 5), pady=(5, 10), sticky="nw")
 desc_entry = tk.Text(root, width=55, height=5, font=("Helvetica", 11))
 desc_entry.grid(row=1, column=1, padx=(5, 15), pady=(5, 10), sticky="ew")
+
+# Shows when the link is already saved (and that saving will update it)
+status_label = tk.Label(root, text="", anchor="w", fg="gray40", font=("Helvetica", 11))
+status_label.grid(row=2, column=1, padx=(5, 15), pady=(0, 10), sticky="w")
 
 # Configure grid weights for better resizing behavior (optional, since resizing is disabled)
 root.grid_columnconfigure(1, weight=1) #does nothing as long as root resiable is set to (false, flase) as above
