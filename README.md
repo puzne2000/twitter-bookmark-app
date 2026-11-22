@@ -133,6 +133,18 @@ app's **Save to:** list and `--all` don't pick them up; Google Drive syncs them 
 | `csv_to_json.py` | Adds rows from every CSV in `input/` to `output/merged.json` that aren't already there; never removes or changes existing entries (see `README_csv_to_json.md`) |
 | `rtf_to_csv.py` | Converts the old RTF log format (no longer used) to CSV |
 
+## Tests
+
+`tests/test_twitter_app2.py` checks what the entry window says and does when saving (Enter, Tab,
+server errors) and which clipboard contents open it. It loads `twitter app2.py` with the hotkey,
+clipboard, description server and sounds faked, and saves to a temporary file, so it never
+touches `output/` or your clipboard. Windows may flash on screen while it runs. From the app's
+folder:
+
+```bash
+~/.local/share/venvs/twitter-bookmark-app/bin/python -m unittest discover tests
+```
+
 ## License
 
 MIT
