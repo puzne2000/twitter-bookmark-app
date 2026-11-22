@@ -6,10 +6,10 @@ Search, view and manage the bookmark entries saved by the bookmark app. Each JSO
 array of dictionaries (one per entry).
 
 Usage:
-    python view_json.py [json_file]
-    python view_json.py --all        # every .json file in the output folder
+    python view_json.py [json_file ...]   # e.g. "AI merged" = output/AI.json output/merged.json
+    python view_json.py --all            # every .json file in the output folder
 
-If no json_file is specified, defaults to 'output/merged.json'.
+If no file is specified, defaults to 'output/merged.json'.
 
 Features:
 - Search entries by keyword
@@ -17,6 +17,7 @@ Features:
 - Copy URLs to clipboard
 - Launch URLs in Safari
 - Delete entries
+- View several files at once (each entry shows its file)
 - Reload automatically when a file changes on disk (e.g. the bookmark app saved an entry)
 - Back up a file before every change
 """
@@ -66,11 +67,37 @@ def get_key():
         finally:
             termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-def get_filename(json_file):
-    if json_file:
-        return json_file
-    else:
-        return os.path.join(DEFAULT_FOLDER, DEFAULT_FILENAME)
+def resolve_file(name):
+    '''
+    Turn a command-line file name into a path: an existing path is used as is; otherwise a
+    short name is looked up in the output folder, with or without ".json"
+    (so "AI" means output/AI.json). Returns None if nothing matches.
+    '''
+    candidates = [name, os.path.join(DEFAULT_FOLDER, name)]
+    if not name.lower().endswith('.json'):
+        candidates.append(os.path.join(DEFAULT_FOLDER, name + '.json'))
+    return next((c for c in candidates if os.path.isfile(c)), None)
+
+def get_files(names):
+    '''
+    The files to view: each name resolved with resolve_file (duplicates dropped), or
+    output/merged.json when no names are given. Raises click.BadParameter for unknown names.
+    Decided with the user: several files are chosen by listing them on the command line.
+    '''
+    if not names:
+        return [os.path.join(DEFAULT_FOLDER, DEFAULT_FILENAME)]
+    files, seen = [], set()
+    for name in names:
+        path = resolve_file(name)
+        if path is None:
+            available = ', '.join(os.path.basename(f) for f in get_filenames()) \
+                if os.path.isdir(DEFAULT_FOLDER) else 'none'
+            raise click.BadParameter(f"no such file: {name} (files in {DEFAULT_FOLDER}/: {available})",
+                                     param_hint='JSON_FILES')
+        if os.path.abspath(path) not in seen:
+            seen.add(os.path.abspath(path))
+            files.append(path)
+    return files
 
 def get_filenames():
     '''
@@ -314,8 +341,9 @@ def search_rows(rows, keyword):
     keyword = keyword.lower()
     return [row for row in rows if any(keyword in (str(value) or '').lower() for key, value in row.items() if not key.startswith('_'))]
 
-def print_entry(row, idx, total):
-    print(f"\nEntry {idx+1} of {total}")
+def print_entry(row, idx, total, show_file=False):
+    where = f"   [{os.path.basename(row[FILE_KEY])}]" if show_file else ""
+    print(f"\nEntry {idx+1} of {total}{where}")
     print("=" * 40)
     for key, value in row.items():
         if not key.startswith('_'):
@@ -351,19 +379,21 @@ NOT_WRITTEN = {
 # command line options
 import click
 @click.command()
-@click.argument('json_file', required=False)
-@click.option('--all', '-a', is_flag=True, default=False, help="If set, view all files in the output folder instead of just one.")
-def main(json_file, all):
+@click.argument('json_files', nargs=-1)
+@click.option('--all', '-a', is_flag=True, default=False, help="If set, view all files in the output folder.")
+def main(json_files, all):
     """
-    View and search entries in a JSON file (default: output/merged.json).
+    View and search entries in one or more JSON files (default: output/merged.json).
+    A file in the output folder can be given by its short name: "AI" means output/AI.json.
     """
     if all:
         files = get_filenames()
         source = f"{len(files)} files in {DEFAULT_FOLDER}/"
     else:
-        files = [get_filename(json_file)]
-        source = files[0]
+        files = get_files(json_files)
+        source = files[0] if len(files) == 1 else f"{len(files)} files ({', '.join(os.path.basename(f) for f in files)})"
     lib = Library(files)
+    show_file = len(files) > 1
 
     print(f"Loaded {len(lib.data)} entries from {source}.")
     while True:
@@ -390,7 +420,7 @@ def main(json_file, all):
             # Get URL key from the current entry, fallback to first non-underscore key if no 'url' field
             url_key = 'url' if 'url' in row else next((key for key in row.keys() if not key.startswith('_')), None)
 
-            print_entry(row, idx, total)
+            print_entry(row, idx, total, show_file)
             print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [D]elete, [Q]uit: ", end='', flush=True)
             cmd = get_key()
             print(cmd.upper())  # Show the key that was pressed

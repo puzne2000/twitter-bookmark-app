@@ -79,8 +79,13 @@ middle of the file.
 ```bash
 ~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py               # output/merged.json
 ~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py output/AI.json
+~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py AI merged     # several files
 ~/.local/share/venvs/twitter-bookmark-app/bin/python view_json.py --all         # every .json in output/
 ```
+
+Files in `output/` can be named without the folder and `.json` (`AI` means `output/AI.json`);
+full paths, also outside `output/`, and shell patterns like `output/A*.json` work too. With more
+than one file, each entry shows which file it is in, e.g. `Entry 3 of 40   [AI.json]`.
 
 Type a keyword (or Enter for everything), then use single keys:
 **N**/Enter next, **P** previous, **S** new search, **C** copy URL, **L** open in Safari,
