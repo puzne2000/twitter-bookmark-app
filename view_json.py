@@ -16,6 +16,7 @@ Features:
 - Navigate through entries with N/P keys
 - Copy URLs to clipboard
 - Launch URLs in Safari
+- Edit an entry's description (E) or draft (R)
 - Delete entries
 - View several files at once (each entry shows its file)
 - Reload automatically when a file changes on disk (e.g. the bookmark app saved an entry)
@@ -25,6 +26,7 @@ Features:
 import json
 import os
 import re
+import shlex
 import shutil
 import sys
 import tempfile
@@ -370,6 +372,61 @@ def launch_in_safari(url):
     except Exception as e:
         print(f"Failed to launch Safari: {e}")
 
+def edit_text(text):
+    '''
+    Let the user edit text in a terminal editor: $VISUAL or $EDITOR if set, otherwise nano.
+    Returns the edited text, or None if the editor could not be run or failed.
+    Decided with the user: edit in an editor on a temporary file (comfortable for long and
+    multi-line descriptions, and for Hebrew), rather than on a single input line.
+    '''
+    editor = os.environ.get('VISUAL') or os.environ.get('EDITOR') or 'nano'
+    fd, path = tempfile.mkstemp(prefix='bookmark-', suffix='.txt')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(text)
+        try:
+            result = subprocess.run(shlex.split(editor) + [path])
+        except OSError as e:
+            print(f"Could not start the editor '{editor}': {e}")
+            return None
+        if result.returncode != 0:
+            print(f"The editor '{editor}' exited with an error; nothing saved.")
+            return None
+        with open(path, 'r', encoding='utf-8') as f:
+            new = f.read()
+    finally:
+        os.remove(path)
+    if not text.endswith('\n'):
+        new = new.rstrip('\n')  # editors add a final newline
+    return new
+
+def edit_field(row, field):
+    '''
+    Edit one field (description or draft) of the entry on screen and write it back.
+    Decided with the user: E edits the description, R the draft; an edit sets "updated" to
+    now, in the app's format; url, date and time are never changed (the app finds an entry
+    again by those three). Returns the change_entry result, or None if nothing was written.
+    '''
+    old = str(row.get(field) or '')
+    new = edit_text(old)
+    if new is None:
+        return None
+    if new == old:
+        print("No change.")
+        return None
+    if field == 'description' and not new.strip():
+        print("Empty description - nothing saved.")
+        return None
+    updated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    def change(entry):
+        entry[field] = new
+        entry['updated'] = updated
+    result = change_entry(row[FILE_KEY], row, change)
+    if result != 'ok':
+        print(NOT_WRITTEN[result])
+        print(f"Your {field} (not saved, copy it if you want it):\n{new}\n")
+    return result
+
 NOT_WRITTEN = {
     'changed': "Another program changed this entry since it was shown, so nothing was written. "
                "Here it is again:",
@@ -421,7 +478,7 @@ def main(json_files, all):
             url_key = 'url' if 'url' in row else next((key for key in row.keys() if not key.startswith('_')), None)
 
             print_entry(row, idx, total, show_file)
-            print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [D]elete, [Q]uit: ", end='', flush=True)
+            print("[N]ext, [P]revious, [S]earch, [C]lipboard, [L]aunch, [E]dit description, d[R]aft, [D]elete, [Q]uit: ", end='', flush=True)
             cmd = get_key()
             print(cmd.upper())  # Show the key that was pressed
             if cmd == 'n' or cmd == '\r' or cmd == '\n':  # Enter or n
@@ -455,10 +512,23 @@ def main(json_files, all):
                     print("No more entries to display.")
                     break
                 idx = relocate(old, idx, filtered, quiet=True)
+            elif cmd in ('e', 'r'):
+                field = 'description' if cmd == 'e' else 'draft'
+                if edit_field(row, field) == 'ok':
+                    entry_file = row[FILE_KEY]
+                    lib.reload(entry_file)
+                    old, filtered = filtered, search_rows(lib.data, keyword)
+                    print(f"{field.capitalize()} saved to {entry_file} (backup in {BACKUP_DIR}/).")
+                    if find_entry(filtered, row) is None:
+                        print("(The entry no longer matches your search.)")
+                    if not filtered:
+                        print("No more entries to display.")
+                        break
+                    idx = relocate(old, idx, filtered, quiet=True)
             elif cmd == 'q':
                 return
             else:
-                print("Unknown command. Use N, P, S, C, L, D, or Q.")
+                print("Unknown command. Use N, P, S, C, L, E, R, D, or Q.")
 
 if __name__ == '__main__':
     main()

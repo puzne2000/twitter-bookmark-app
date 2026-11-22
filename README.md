@@ -89,7 +89,15 @@ than one file, each entry shows which file it is in, e.g. `Entry 3 of 40   [AI.j
 
 Type a keyword (or Enter for everything), then use single keys:
 **N**/Enter next, **P** previous, **S** new search, **C** copy URL, **L** open in Safari,
-**D** delete (written back to the file the entry came from), **Q** quit.
+**E** edit the description, **R** edit the draft, **D** delete (written back to the file the
+entry came from), **Q** quit.
+
+**Editing.** E (or R) opens the text in `nano` (or in `$VISUAL`/`$EDITOR` if you set one). Change
+it, save with **Ctrl+O** and Enter, quit with **Ctrl+X**; the viewer writes it back and sets the
+entry's `updated` field to the current date and time, as the app does. Quitting without changes
+writes nothing; an empty description is not saved (an empty draft is). The entry's `url`, `date`
+and `time` never change, so the app still recognises it. If another program changed the entry
+while you were editing, your text is printed instead of saved, so you can copy it.
 
 **Safe to leave open.** Before each key press the viewer checks whether a file changed on disk
 (for example the app saved a link, or another viewer deleted an entry) and re-reads it, saying
