@@ -144,6 +144,10 @@ class EntryWindow:
 
 
 
+# How get_description_from_server's answer starts when the server failed
+ERROR_PREFIXES = ("Error:", "Exception:")
+
+
 def get_description_from_server(address, draft_description, when_done):
     """
     Asynchronously requests a website description from the server.
@@ -210,26 +214,57 @@ def is_url(string):
     url_pattern = re.compile(
         r'^(https?://)?(www\.)?([a-zA-Z0-9_-]+)+(\.[a-zA-Z]{2,})+(/[a-zA-Z0-9#?=_-]*)*'
     )
-    return bool(url_pattern.match(string))
+    text = string.strip()
+    match = url_pattern.match(text)
+    if not match:
+        return False
+    # A bare name like report.docx or notes.txt (what Finder puts on the clipboard
+    # when you copy a file) also fits the pattern. Without http(s)://, www. or a
+    # /path, refuse it if it ends in a common file extension.
+    scheme, www = match.group(1), match.group(2)
+    if not scheme and not www and "/" not in text:
+        if text.rsplit(".", 1)[-1].lower() in FILE_NAME_EXTENSIONS:
+            return False
+    return True
+
+
+# Endings of file names that are not web addresses (some, like .md or .zip, are also
+# real domain endings; a link with one still works with http(s)://, www. or a /path).
+FILE_NAME_EXTENSIONS = {
+    'doc', 'docx', 'dot', 'dotx', 'rtf', 'txt', 'md', 'pages', 'numbers', 'key', 'odt', 'ods',
+    'odp', 'xls', 'xlsx', 'xlsm', 'csv', 'tsv', 'ppt', 'pptx', 'pdf', 'png', 'jpg', 'jpeg',
+    'heic', 'gif', 'webp', 'tif', 'tiff', 'bmp', 'svg', 'psd', 'mov', 'mp4', 'm4v', 'avi',
+    'mkv', 'mp3', 'm4a', 'wav', 'aif', 'aiff', 'flac', 'zip', 'rar', 'tar', 'gz', 'tgz',
+    'dmg', 'pkg', 'app', 'py', 'ipynb', 'js', 'json', 'xml', 'yaml', 'yml', 'tex', 'bib',
+    'epub', 'mobi', 'log', 'sh', 'command', 'html', 'htm', 'eml', 'vcf', 'ics', 'plist',
+}
 
 # Files that can be bookmarked (the description server reads PDFs and images)
 FILE_EXTENSIONS = ('.pdf', '.png', '.jpg', '.jpeg', '.heic', '.gif', '.webp')
 
 
-def file_from_clipboard():
-    """
-    Return the full path of a supported file on the clipboard, or None.
-    Accepts a file copied in Finder (Cmd+C) or a copied path (Option+Cmd+C).
-    """
-    candidates = []
-    try:  # a file copied in Finder
+def finder_file_on_clipboard():
+    """Return the path of a file or folder copied in Finder (Cmd+C), or None."""
+    try:
         result = subprocess.run(
             ['osascript', '-e', 'POSIX path of (the clipboard as «class furl»)'],
             capture_output=True, text=True, timeout=5)
         if result.returncode == 0:
-            candidates.append(result.stdout.strip())
+            path = result.stdout.strip()
+            if path and os.path.exists(path):
+                return path
     except Exception:
         pass
+    return None
+
+
+def file_from_clipboard(finder_path=None):
+    """
+    Return the full path of a supported file on the clipboard, or None.
+    Accepts a file copied in Finder (Cmd+C; pass finder_file_on_clipboard() as
+    finder_path) or a copied path (Option+Cmd+C).
+    """
+    candidates = [finder_path] if finder_path else []
     text = (pyperclip.paste() or "").strip().strip('"\'')  # a copied path
     if text.startswith("file://"):
         from urllib.parse import unquote, urlparse
@@ -250,8 +285,12 @@ def autofill_link(link_entry):
     print("autofill")
     clipboard_content = pyperclip.paste()
     # Check for a file first: a Finder copy also puts the bare file name (e.g. report.pdf)
-    # on the clipboard as text, which would pass the loose is_url check.
-    found = file_from_clipboard() or (clipboard_content.strip() if is_url(clipboard_content) else None)
+    # on the clipboard as text, which could pass the is_url check.
+    finder_path = finder_file_on_clipboard()
+    found = file_from_clipboard(finder_path)
+    if not found and not finder_path and is_url(clipboard_content):
+        # (a file of an unsupported type copied in Finder is not a link: Frog)
+        found = clipboard_content.strip()
     if found:
         link_entry.delete(0, tk.END)
         link_entry.insert(0, found)
@@ -437,15 +476,25 @@ def save_entry(url, description, date, draft = "", update=None):
             return ""
 
 
-def clear_entry_and_withdraw():
+def clear_entry_and_withdraw(saved=True):
+    """
+    Empty the window, hide it and return to the previous app. With saved=True,
+    also flash "Entry Saved" (only call it that way after a save succeeded).
+    """
     global existing_entry, desc_for_link
     link_entry.delete(0, tk.END)
     desc_entry.delete("1.0", tk.END)
     existing_entry = None
     desc_for_link = None
     status_label.config(text="")
+    if saved:
+        show_saved_message()
+    root.withdraw()  # Hide the main window
+    restore_previous_app()
 
 
+def show_saved_message():
+    """Flash a small "Entry Saved" window that fades out."""
     saved_window = tk.Toplevel(root)
     saved_window.overrideredirect(True)  # Remove window decorations
     saved_window.attributes("-topmost", True)
@@ -455,24 +504,14 @@ def clear_entry_and_withdraw():
     label = tk.Label(saved_window, text="Entry Saved", font=("Helvetica", 16), bg="white")
     label.pack(expand=True, fill="both", padx=10, pady=10)
 
-
-    root.withdraw()
-
     def fade_out(alpha=1.0):
         if alpha > 0:
-#            print(alpha)
             saved_window.attributes("-alpha", alpha)
             saved_window.after(50, fade_out, alpha - 0.02)
         else:
             saved_window.destroy()
 
     fade_out()
-    ### end of part that should be seperated
-                   # Hide the main window
-    #not sure why this should be here, the writing to file and the gui window release should be separated
-    root.withdraw()
-    # Restore focus to the previous application after the popup fades out
-    restore_previous_app()
 
 # Function to bring up the app window with autofill from clipboard
 def attempt_app_to_front():
@@ -533,8 +572,9 @@ def on_hotkey():
 
 def verify_done_window(root, f_run):
     '''
-    pops a modal window child of root. if user confirms (by clicking or typing enter) then 
-    the window is closed and f_run is run. Otherwise the confirmation window closes
+    pops a modal window child of root. if user confirms (by clicking or typing enter) then
+    f_run is run and the confirmation window closes; root is hidden only if f_run
+    returns True (otherwise root stays open for another try). Escape just closes it.
     '''
     done_win = tk.Toplevel(root)
     done_win.title("Done?")
@@ -545,9 +585,14 @@ def verify_done_window(root, f_run):
 
     def on_done(event=None):
         done_win.grab_release()
-        f_run()
+        ok = f_run()
         done_win.destroy()
-        root.withdraw()
+        if ok:
+            root.withdraw()
+        else:
+            root.lift()
+            root.focus_force()
+            desc_entry.focus_set()
 
     def on_cancel(event=None):
         done_win.grab_release()
@@ -596,8 +641,16 @@ def entry_from_interface():
 def entry_is_done():
     ## thess should be read elsewhere and passed as parameters to save_entry
     tweet_link, description, date = entry_from_interface() 
-    save_entry(tweet_link, description, date, update=existing_entry)
-    clear_entry_and_withdraw()
+    saved = save_entry(tweet_link, description, date, update=existing_entry)
+    if saved:
+        clear_entry_and_withdraw()
+        return True
+    # Not saved (save_entry already warned about an empty field; "" means the file
+    # could not be written): keep the window open with the link and text, so the
+    # user can fix it and press Enter again.
+    if saved == "":
+        messagebox.showerror("Not saved", f"Could not write to:\n{notes_file}\n\nThe entry was not saved.")
+    return False
 
 def return_pressed(event=None):
     # Only triggered if Shift is NOT held
@@ -640,6 +693,14 @@ def auto_description_requested(arg):
             text_box.insert("1.0", initial_text)
             text_box.pack(padx=10, pady=(10, 5))
 
+            # The server failed: say so, and don't let Enter save the error as the description
+            is_error = (initial_text or "").startswith(ERROR_PREFIXES)
+            if is_error:
+                tk.Label(dialog, fg="red3", justify="left", wraplength=460,
+                         text="This is an error from the description server, not a description. "
+                              "Replace it with your own text and press Enter, or press Esc to "
+                              "save what you typed before pressing Tab.").pack(padx=10, pady=(0, 5))
+
             # Focus the text box
             dialog.lift()  # Brings the window to the top of the stacking order
             dialog.focus_force()
@@ -648,7 +709,11 @@ def auto_description_requested(arg):
 
             # Handler for Done button or Return
             def on_done(event=None):
-                result_var['value'] = text_box.get("1.0", tk.END).strip()
+                text = text_box.get("1.0", tk.END).strip()
+                if is_error and text.startswith(ERROR_PREFIXES):
+                    dialog.bell()  # still the error text: keep the box open
+                    return
+                result_var['value'] = text
                 dialog.grab_release()
                 dialog.destroy()
 
@@ -689,12 +754,16 @@ def auto_description_requested(arg):
         edited_result = show_editable_description_dialog(result)
         print(f"result: {result} \nEditted result: {edited_result}")
         if edited_result is not None:
-            save_entry(tweet_link, edited_result, date, description, update=editing)
+            saved = save_entry(tweet_link, edited_result, date, description, update=editing)
         else:
-            save_entry(tweet_link, description, date, update=editing)
+            saved = save_entry(tweet_link, description, date, update=editing)
+        if saved:
+            show_saved_message()
+        elif saved == "":
+            messagebox.showerror("Not saved", f"Could not write to:\n{notes_file}\n\nThe entry was not saved.")
 
     get_description_from_server(tweet_link, description, when_done)
-    clear_entry_and_withdraw()
+    clear_entry_and_withdraw(saved=False)  # nothing is saved until the server answers
     return "break"  # Prevent the default tab insertion
 
 

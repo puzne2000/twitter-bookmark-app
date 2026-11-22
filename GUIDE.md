@@ -44,9 +44,13 @@ To give up without saving, press **Esc** or **Cmd+W** in the Description box.
 
 If the clipboard holds no link or file, you hear the **Frog** sound and nothing opens.
 
-**Always type a description.** If you press Enter with the box empty, a "Please fill in both
-fields" warning appears. After you click OK, "Entry Saved" appears anyway, but **nothing was
-saved** and the link is gone from the window. Press Cmd+Shift+V again to start over.
+If you press Enter with the Description box empty, a "Please fill in both fields" warning
+appears and nothing is saved. Click OK: the window stays open with your link, so type a
+description and press Enter again.
+
+If the file can't be written (for example, it was made read-only), a "Not saved" message says
+so, and the window also stays open with your link and description. "Entry Saved" appears only
+when the entry really was saved.
 
 ## 3. Automatic descriptions (Tab)
 
@@ -55,11 +59,11 @@ Press **Tab** instead of Enter, and the description server writes the descriptio
 1. Copy a link and press **Cmd+Shift+V** as usual.
 2. If you like, type a few words first: a draft or a hint ("the part about sleep"). You can
    also leave it empty.
-3. Press **Tab**. The window hides right away. Ignore the "Entry Saved" message for now: it
-   comes too early.
+3. Press **Tab**. The window hides right away. Nothing is saved yet.
 4. After a few seconds (longer for big PDFs), a box called **Description obtained** opens with
    the server's description.
 5. Edit it if you want, then press **Enter** to save it. **Shift+Enter** starts a new line.
+   "Entry Saved" appears briefly.
 
 What you typed in step 2 is kept with the entry as its **draft**.
 
@@ -68,9 +72,10 @@ thrown away and **what you typed in step 2 is saved instead**. If you typed noth
 "Please fill in both fields" warning and nothing is saved.
 
 The server must be running (see [Starting up](#1-starting-up)). If something goes wrong, the box
-shows `Error: …` or `Exception: …` instead of a description. **Don't press Enter on an error**,
-or the error text is saved as the description. Press Esc to keep what you typed, or replace the
-text with your own. [Troubleshooting](#9-troubleshooting) explains the common errors.
+shows `Error: …` or `Exception: …` instead of a description, with a red note underneath. The
+error is never saved as the description: while the box still shows it, Enter does nothing. Either
+replace the text with your own description and press Enter, or press Esc to save what you typed
+in step 2. [Troubleshooting](#9-troubleshooting) explains the common errors.
 
 ## 4. Links you saved before
 
@@ -97,9 +102,8 @@ You can bookmark files of these types: **.pdf .png .jpg .jpeg .heic .gif .webp**
 **The entry points to the file where it is now; no copy is made.** If you later move or rename
 the file, the saved path no longer leads to it. The description will still help you find it.
 
-Other file types (a Word document, say) aren't supported. Depending on the file's name, you
-either hear the Frog sound, or the window opens with just the bare file name (like
-`report.docx`) as the link. That's useless as a bookmark, so press **Esc**.
+Other file types (a Word document, say) aren't supported: you hear the Frog sound and nothing
+opens.
 
 ## 6. Choosing which file to save to
 
@@ -251,8 +255,8 @@ The message says what went wrong.
 - **`Error: …` with a longer message** comes from the server itself (for example, the page
   couldn't be opened, or OpenAI refused). Try again later, or write the description yourself.
 
-In every case, press **Esc** rather than Enter, so the error text isn't saved (see
-[section 3](#3-automatic-descriptions-tab)).
+In every case, press **Esc** to save what you typed before pressing Tab, or replace the error
+with your own description and press Enter (see [section 3](#3-automatic-descriptions-tab)).
 
 ### Logs
 

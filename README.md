@@ -42,9 +42,12 @@ Keep that Terminal window open; closing it quits the app. Logs:
 
 1. Copy a URL.
 2. Press **Cmd+Shift+V**. The window opens with the link filled in. If the clipboard has no URL,
-   you hear the Frog sound and nothing opens.
+   you hear the Frog sound and nothing opens. (A bare file name such as `report.docx`, or an
+   unsupported file copied in Finder, doesn't count as a URL.)
 3. Type a description, press **Enter**, then **Enter** again to confirm.
-   **Shift+Enter** adds a new line; **Esc** or **Cmd+W** cancels.
+   **Shift+Enter** adds a new line; **Esc** or **Cmd+W** cancels. If nothing could be saved
+   (empty description, or the file can't be written), a warning says so and the window stays
+   open with the link.
 
 **Already saved?** If the link is already in the open file, the window shows its saved
 description and a note saying when it was saved. Saving then updates that entry (its
@@ -64,7 +67,9 @@ itself to the description server.
 Press **Tab** in the description box instead of Enter. The app sends the link (and what you typed,
 as a draft) to the headless_scrapper server, which reads the page and asks an AI model for a short
 description. A box then shows the result for you to edit; Enter saves it. Your draft is saved in
-the `draft` field.
+the `draft` field. If the server's answer is an error (`Error: …` / `Exception: …`), the box says
+so and Enter won't save it: replace it with your own text, or press Esc to save your draft as the
+description.
 
 ## Where entries go
 
