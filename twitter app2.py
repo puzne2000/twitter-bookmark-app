@@ -208,16 +208,49 @@ def is_url(string):
     )
     return bool(url_pattern.match(string))
 
+# Files that can be bookmarked (the description server reads PDFs and images)
+FILE_EXTENSIONS = ('.pdf', '.png', '.jpg', '.jpeg', '.heic', '.gif', '.webp')
+
+
+def file_from_clipboard():
+    """
+    Return the full path of a supported file on the clipboard, or None.
+    Accepts a file copied in Finder (Cmd+C) or a copied path (Option+Cmd+C).
+    """
+    candidates = []
+    try:  # a file copied in Finder
+        result = subprocess.run(
+            ['osascript', '-e', 'POSIX path of (the clipboard as «class furl»)'],
+            capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            candidates.append(result.stdout.strip())
+    except Exception:
+        pass
+    text = (pyperclip.paste() or "").strip().strip('"\'')  # a copied path
+    if text.startswith("file://"):
+        from urllib.parse import unquote, urlparse
+        text = unquote(urlparse(text).path)
+    candidates.append(os.path.expanduser(text))
+    for path in candidates:
+        if path and path.lower().endswith(FILE_EXTENSIONS) and os.path.isfile(path):
+            return path
+    return None
+
+
 # Function to check clipboard and auto-fill link field if valid
 def autofill_link(link_entry):
     '''
-    fills the link_entry label with a link from the clipboard, if one exists there
+    fills the link_entry label with a link or a supported file path from the
+    clipboard, if one exists there
     '''
     print("autofill")
     clipboard_content = pyperclip.paste()
-    if is_url(clipboard_content):
+    # Check for a file first: a Finder copy also puts the bare file name (e.g. report.pdf)
+    # on the clipboard as text, which would pass the loose is_url check.
+    found = file_from_clipboard() or (clipboard_content.strip() if is_url(clipboard_content) else None)
+    if found:
         link_entry.delete(0, tk.END)
-        link_entry.insert(0, clipboard_content)
+        link_entry.insert(0, found)
         return(True)
     else:
         ## just enter text to description instead!
@@ -737,7 +770,7 @@ root.resizable(False, False)  # Prevent window resizing for a cleaner look
 root.protocol("WM_DELETE_WINDOW", on_closing)
 
 # Create and place the "Tweet Link" label and entry field
-label_link = tk.Label(root, text="Tweet Link:", anchor="w", font=("Helvetica", 12))
+label_link = tk.Label(root, text="Link or file:", anchor="w", font=("Helvetica", 12))
 label_link.grid(row=0, column=0, padx=(15, 5), pady=(15, 5), sticky="w")
 link_entry = tk.Entry(root, width=55, font=("Helvetica", 11))
 link_entry.grid(row=0, column=1, padx=(5, 15), pady=(15, 5), sticky="ew")

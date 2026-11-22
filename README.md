@@ -43,6 +43,19 @@ Keep that Terminal window open; closing it quits the app. Logs:
 3. Type a description, press **Enter**, then **Enter** again to confirm.
    **Shift+Enter** adds a new line; **Esc** or **Cmd+W** cancels.
 
+**Already saved?** If the link is already in the open file, the window shows its saved
+description and a note saying when it was saved. Saving then updates that entry (its
+description, and an `updated` date) instead of adding a duplicate. With several copies of a
+link, the newest one is used. (JSON files only.)
+
+### Saving files
+
+PDFs and images (`.pdf .png .jpg .jpeg .heic .gif .webp`) can be bookmarked too: copy the file
+in Finder (**Cmd+C**) or copy its path (**Option+Cmd+C**), then press **Cmd+Shift+V**. The entry
+stores the file's full path where it is; no copy is made, so if you move or rename the file
+later the path no longer works (the description still helps you find it). **Tab** sends the file
+itself to the description server.
+
 ### Automatic descriptions
 
 Press **Tab** in the description box instead of Enter. The app sends the link (and what you typed,
