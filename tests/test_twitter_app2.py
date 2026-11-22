@@ -160,18 +160,23 @@ class AppTestCase(unittest.TestCase):
 
     def tab_with_server_answer(self, answer, in_dialog):
         """Press Tab; the fake server answers `answer`; in_dialog(dialog) runs in the box."""
+        # The fake server answers only once the test is ready for the box (below), so a
+        # slow machine can't open the box before run_dialog is scheduled.
+        pending = []
         self.app["get_description_from_server"] = \
-            lambda address, draft, when_done: self.root.after(50, when_done, answer)
+            lambda address, draft, when_done: pending.append(when_done)
         self.app["auto_description_requested"](None)
         self.root.update()
         after_tab = {"flashes": len(self.saved_flashes()), "hidden": self.root.state() == "withdrawn"}
+        self.assertEqual(len(pending), 1, "Tab asked the server once")
 
         def run_dialog():
             try:
                 in_dialog(self.toplevel("Description obtained"))
             finally:
                 self.root.after(300, self.root.quit)
-        self.root.after(300, run_dialog)
+        self.root.after(300, run_dialog)  # runs while the box waits for input
+        self.root.after(50, pending[0], answer)
         self.root.after(5000, self.root.quit)  # safety net
         self.root.mainloop()
         self.root.update()
